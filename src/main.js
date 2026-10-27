@@ -59,7 +59,7 @@ async function openVideoDetails(item){
    if(result.error||!result.data?.url)throw new Error(result.data?.error||'Aucun aperçu disponible pour cette vidéo.');
    video.src=result.data.url;video.load();
    $('detailPreviewMessage').textContent='Aperçu public · '+Math.round(result.data.previewDurationSeconds||30)+' secondes maximum.';
-   video.addEventListener('timeupdate',()=>{if(video.currentTime>=Number(result.data.previewDurationSeconds||30)){video.pause();video.currentTime=0}}, {once:false});
+   video.ontimeupdate=()=>{if(video.currentTime>=Number(result.data.previewDurationSeconds||30)){video.pause();video.currentTime=0}};
    video.play().catch(()=>{});
  }catch(err){$('detailPreviewMessage').textContent=err.message||'Aperçu indisponible. Connecte-toi pour découvrir les contenus disponibles.'}
  await refreshDetailStats();
@@ -84,7 +84,7 @@ async function loadDetailComments(){
  if(error){$('detailCommentsList').innerHTML='<p class="detail-muted">Impossible de charger les commentaires.</p>';return}
  $('detailCommentsList').innerHTML=(data||[]).map(c=>'<article class="detail-comment"><small>Membre · '+esc(new Date(c.created_at).toLocaleDateString('fr-FR'))+'</small><p>'+esc(c.body)+'</p></article>').join('')||'<p class="detail-muted">Sois le premier à commenter cette vidéo.</p>';
 }
-\nfunction countrySelect(){return countryOptions.map(c=>'<option value="'+c.code+'">'+esc(c.name)+' ('+c.dial+')</option>').join('')}
+function countrySelect(){return countryOptions.map(c=>'<option value="'+c.code+'">'+esc(c.name)+' ('+c.dial+')</option>').join('')}
 async function renderApp(){
  $('app').innerHTML = `
  <header class="nav">${logo()}<nav class="links"><a class="active" href="#films">Vidéos & Shorts</a><a id="musicNav" href="#music">Musiques</a></nav><div class="navright"><button class="iconbtn" id="searchToggle" aria-label="Rechercher">⌕</button><span class="userchip" id="userChip" hidden></span><button class="btn btn-glass" id="authOpen">Se connecter</button><button class="btn btn-green" id="signupOpen">S’inscrire</button></div></header>

@@ -94,7 +94,7 @@
 .hero .tag{border-color:#d8bc774c;color:#e8dfca}
 .hero .btn-pink{background:linear-gradient(135deg,#fff2cb,#d8af60);color:#21180b;box-shadow:0 9px 28px #dcb76520}
 .hero .btn-green{background:#e9d9ae;color:#16120a}
-.jesus-showcase{position:relative;flex:0 1 44%;width:min(44vw,530px);height:490px;min-width:270px;display:grid;place-items:center;isolation:isolate;margin:0 auto 0 0;animation:holy-reveal 1.4s cubic-bezier(.18,.72,.2,1) both}
+.jesus-showcase{position:relative;z-index:1;flex:0 1 44%;width:min(44vw,530px);height:490px;min-width:270px;display:grid;place-items:center;isolation:isolate;margin:0 auto 0 0;animation:holy-reveal 1.4s cubic-bezier(.18,.72,.2,1) both}
 .jesus-showcase:before{content:"";position:absolute;inset:13% 10% 11%;z-index:-2;border-radius:50%;background:radial-gradient(ellipse,#f5d98d24 0%,#e0bd6a0d 43%,transparent 72%);filter:blur(8px);animation:holy-breathe 7s ease-in-out infinite}
 .jesus-showcase:after{content:"";position:absolute;inset:8% 12%;z-index:-3;border-radius:50%;border:1px solid #f4dc9e22;box-shadow:0 0 80px #dcb86d0c,inset 0 0 55px #dcb86d0a}
 .jesus-art{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 20px 45px #d9b66020)}

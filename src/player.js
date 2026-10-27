@@ -71,7 +71,17 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
       sessionId=data.sessionId;
       video.hidden=detail.kind!=='movie';audio.hidden=detail.kind!=='track';
       const target=detail.kind==='movie'?video:audio;
+      if(subtitleUrl){URL.revokeObjectURL(subtitleUrl);subtitleUrl=null}
+      video.querySelectorAll('track').forEach(t=>t.remove());
+      activeClipStart=detail.kind==='movie'?Math.max(0,Number(detail.item.clip_start_seconds)||0):0;
+      activeClipEnd=detail.kind==='movie'&&detail.item.clip_end_seconds!==null&&detail.item.clip_end_seconds!==undefined?Number(detail.item.clip_end_seconds):null;
+      if(detail.kind==='movie'&&Array.isArray(detail.item.subtitles)&&detail.item.subtitles[0]?.vtt){
+        subtitleUrl=URL.createObjectURL(new Blob([detail.item.subtitles[0].vtt],{type:'text/vtt'}));
+        const track=document.createElement('track');track.kind='subtitles';track.label=detail.item.subtitles[0].label||'Français';track.srclang=detail.item.subtitles[0].language||'fr';track.src=subtitleUrl;track.default=true;video.append(track);
+        track.addEventListener('load',()=>{try{track.track.mode='showing'}catch{}});
+      }
       target.src=data.url;target.load();
+      if(detail.kind==='movie'&&activeClipStart>0)target.addEventListener('loadedmetadata',()=>{target.currentTime=activeClipStart},{once:true});
       const remain=data.trialRemainingSeconds;
       message.textContent=remain===null?'Accès autorisé · '+String(data.tier||'').toUpperCase():`Essai gratuit : environ ${Math.floor(remain/3600)} h ${Math.floor((remain%3600)/60)} min restantes.`;
       try{await target.play()}catch{message.textContent+=' Appuie sur Lecture pour démarrer.'}
@@ -85,6 +95,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
   modal.addEventListener('click',e=>{if(e.target===modal)close()});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
   [video,audio].forEach(target=>{
+    target.addEventListener('timeupdate',()=>{if(target===video&&activeClipEnd!==null&&Number.isFinite(activeClipEnd)&&target.currentTime>=activeClipEnd){target.pause();target.currentTime=activeClipStart;message.textContent='Fin de l’extrait.'}});
     target.addEventListener('playing',()=>{if(sessionId)startHeartbeat(target)});
     target.addEventListener('pause',()=>{if(heartbeat){clearHeartbeat();void sendHeartbeat()}});
     target.addEventListener('ended',()=>{void stopSession()});

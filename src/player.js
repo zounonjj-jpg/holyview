@@ -96,7 +96,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
   [video,audio].forEach(target=>{
     target.addEventListener('timeupdate',()=>{if(target===video&&activeClipEnd!==null&&Number.isFinite(activeClipEnd)&&target.currentTime>=activeClipEnd){target.pause();target.currentTime=activeClipStart;message.textContent='Fin de l’extrait.'}});
-    target.addEventListener('playing',()=>{if(sessionId)startHeartbeat(target);if(target===video&&activeMovieId&&!viewLogged){const user=getUser();if(user){viewLogged=true;void supabase.from('video_views').insert({movie_id:activeMovieId,user_id:user.id,view_date:new Date().toISOString().slice(0,10)}).then(({error})=>{if(error&&error.code!=='23505')console.warn('HOLYVIEW view tracking',error)})}}});
+    target.addEventListener('playing',()=>{if(sessionId)startHeartbeat(target);if(target===video&&activeMovieId&&!viewLogged){const user=getUser();if(user){viewLogged=true;void supabase.from('video_views').insert({movie_id:activeMovieId,user_id:user.id,view_date:new Date().toISOString().slice(0,10)}).then(({error})=>{if(error&&error.code!=='23505')console.warn('HOLYVIEW view tracking',error);else window.dispatchEvent(new CustomEvent('holyview:view-recorded',{detail:{movieId:activeMovieId}}))})}}});
     target.addEventListener('pause',()=>{if(heartbeat){clearHeartbeat();void sendHeartbeat()}});
     target.addEventListener('ended',()=>{void stopSession()});
   });

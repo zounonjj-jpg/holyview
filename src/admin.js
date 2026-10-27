@@ -37,15 +37,17 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
       <article class="admin-panel"><div class="admin-panel-head"><div><h2>Dernières inscriptions</h2><button class="text-button" data-jump-tab="users">Voir tous les membres ↗</button></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Membre</th><th>Pays</th><th>Formule</th><th>Inscription</th></tr></thead><tbody id="recentUsers"></tbody></table></div></article>
     </section>
     <section class="admin-pane" id="adminPane-users" hidden><article class="admin-panel"><div class="admin-panel-head"><div><h2>Répertoire des utilisateurs</h2><p>Informations de compte, pays et abonnement.</p></div><input id="userSearch" class="admin-search" placeholder="Rechercher nom, e-mail, pays, numéro…"></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Utilisateur</th><th>Pays / téléphone</th><th>Abonnement</th><th>Statut</th><th>Inscrit le</th></tr></thead><tbody id="usersTable"></tbody></table></div><div class="admin-footnote" id="usersCount"></div></article></section>
-    <section class="admin-pane" id="adminPane-content" hidden><article class="admin-panel"><div class="admin-panel-head"><div><h2>Catalogue de HOLYVIEW</h2><p>Seuls les administrateurs publient les films et les musiques.</p></div><div class="admin-inline"><button class="filter active" data-content-filter="all">Tout</button><button class="filter" data-content-filter="movie">Films</button><button class="filter" data-content-filter="track">Musiques</button></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Contenu</th><th>Type</th><th>État</th><th>Téléchargement ELITE</th><th>Action</th></tr></thead><tbody id="contentTable"></tbody></table></div></article></section>
+    <section class="admin-pane" id="adminPane-content" hidden><article class="admin-panel"><div class="admin-panel-head"><div><h2>Catalogue de HOLYVIEW</h2><p>Seuls les administrateurs publient les films et les musiques.</p></div><div class="admin-inline"><button class="filter active" data-content-filter="all">Tout</button><button class="filter" data-content-filter="movie">Films</button><button class="filter" data-content-filter="track">Musiques</button></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Contenu</th><th>Format</th><th>Vues · Likes · Commentaires</th><th>État</th><th>Téléchargement ELITE</th><th>Action</th></tr></thead><tbody id="contentTable"></tbody></table></div></article></section>
     <section class="admin-pane" id="adminPane-publish" hidden><div class="admin-grid"><article class="admin-panel"><div class="admin-panel-head"><div><h2>Ajouter un contenu</h2><p>Les fichiers audio/vidéo sont déposés dans un stockage privé.</p></div></div>
       <form id="publishForm" class="publish-form">
         <label>Type de contenu<select id="publishType"><option value="movie">Film / vidéo</option><option value="track">Musique / audio</option></select></label>
         <label>Titre du contenu<input id="publishTitle" required maxlength="180" placeholder="Ex. Le chemin de la Grâce"></label>
         <label id="publishSynopsisWrap">Synopsis<textarea id="publishSynopsis" rows="3" maxlength="5000" placeholder="Présente le contenu aux spectateurs…"></textarea></label>
         <label id="publishArtistWrap" hidden>Nom de l’artiste<input id="publishArtist" maxlength="160" placeholder="Nom de l’artiste ou du groupe"></label>
-        <div class="admin-two-fields"><label>Année de sortie<input id="publishYear" type="number" min="1900" max="2100" value="2026"></label><label>Affiche (URL d’image)<input id="publishPoster" type="url" placeholder="https://…"></label></div>
+        <div class="admin-two-fields"><label>Année de sortie<input id="publishYear" type="number" min="1900" max="2100" value="2026"></label><label>Miniature personnalisée<input id="publishPosterFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><small>Image d’affiche visible dans le catalogue (10 Mo maximum).</small></label></div>
+        <label>Présentation de la vidéo<select id="publishFormat"><option value="video">Vidéo classique · paysage / cadrage original</option><option value="short">Short · vertical 9:16</option></select><small>Le format choisi organise l’affichage, sans recadrer ni déformer les pixels de la vidéo source.</small></label>
         <label>Fichier média (vidéo ou audio)<input id="publishFile" type="file" accept="video/mp4,video/webm,audio/mpeg,audio/mp4,audio/aac,audio/ogg" required><small>Stockage privé. Taille maximale configurée : 2 Go. Pour les gros fichiers, un flux d’envoi reprenable sera nécessaire.</small></label>
+        <label id="previewUploadWrap">Aperçu public de la vidéo (obligatoire pour publier)<input id="publishPreviewFile" type="file" accept="video/mp4,video/webm" required><small>Importe un extrait de présentation séparé (1 à 120 secondes). Seul cet extrait sera accessible aux visiteurs non connectés. La vidéo complète reste privée.</small></label>
         <section id="videoEditor" class="video-editor">
           <div class="video-editor-head"><div><strong>Aperçu & réglages vidéo</strong><small>Vérifie la vidéo avant de l’enregistrer.</small></div><span class="editor-badge">PRÉVISUALISATION</span></div>
           <video id="publishPreview" controls playsinline preload="metadata" hidden></video>
@@ -105,7 +107,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
         fetchAll('profiles','id,email,full_name,display_name,country_code,phone_number,created_at'),
         fetchAll('subscriptions','id,user_id,tier,status,starts_at,ends_at,created_at'),
         fetchAll('payments','id,user_id,amount,currency,status,created_at'),
-        fetchAll('movies','id,title,slug,status,is_featured,allow_offline_download,poster_path,created_at,video_asset_path,clip_start_seconds,clip_end_seconds,subtitles'),
+        fetchAll('movies','id,title,slug,status,is_featured,allow_offline_download,poster_path,created_at,video_asset_path,preview_asset_path,display_format,clip_start_seconds,clip_end_seconds,subtitles,movie_stats(view_count,like_count,comment_count,share_count)'),
         fetchAll('music_tracks','id,title,status,allow_offline_download,audio_asset_path,created_at')
       ]);
       users=u; subscriptions=s; payments=p; movies=m; tracks=t;
@@ -167,13 +169,17 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
   }
   function renderContent() {
     const all=[...movies.map(x=>({...x,kind:'movie',media:x.video_asset_path})),...tracks.map(x=>({...x,kind:'track',media:x.audio_asset_path}))].filter(x=>contentFilter==='all'||x.kind===contentFilter).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-    document.getElementById('contentTable').innerHTML=all.map(x=>`<tr><td><strong>${escapeHtml(x.title)}</strong><small>${escapeHtml(x.slug||'')}</small></td><td>${x.kind==='movie'?'Film / vidéo':'Musique / audio'}</td><td><span class="status-pill ${escapeHtml(x.status)}">${escapeHtml(x.status)}</span></td><td>${x.allow_offline_download?'<span class="status-pill active">Autorisé</span>':'<span class="muted-text">Non autorisé</span>'}</td><td><div class="admin-actions"><button class="small-action" data-status-id="${escapeHtml(x.id)}" data-status-kind="${x.kind}" data-next-status="${x.status==='published'?'draft':'published'}">${x.status==='published'?'Dépublier':'Publier'}</button><button class="small-action" data-download-id="${escapeHtml(x.id)}" data-download-kind="${x.kind}" data-next-download="${!x.allow_offline_download}">${x.allow_offline_download?'Retirer ELITE':'Autoriser ELITE'}</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="table-empty">Aucun contenu enregistré. Utilise « Publier un média » pour commencer.</td></tr>';
+    document.getElementById('contentTable').innerHTML=all.map(x=>{const stats=Array.isArray(x.movie_stats)?x.movie_stats[0]:x.movie_stats;return `<tr><td><strong>${escapeHtml(x.title)}</strong><small>${escapeHtml(x.slug||'')}</small></td><td>${x.kind==='track'?'Musique / audio':x.display_format==='short'?'Short · 9:16':'Vidéo · cadrage préservé'}</td><td>${x.kind==='movie'?'<strong>▶ '+Number(stats?.view_count||0)+' vues</strong><small>♥ '+Number(stats?.like_count||0)+' likes · '+Number(stats?.comment_count||0)+' commentaires</small>':'—'}</td><td><span class="status-pill ${escapeHtml(x.status)}">${escapeHtml(x.status)}</span></td><td>${x.allow_offline_download?'<span class="status-pill active">Autorisé</span>':'<span class="muted-text">Non autorisé</span>'}</td><td><div class="admin-actions"><button class="small-action" data-status-id="${escapeHtml(x.id)}" data-status-kind="${x.kind}" data-next-status="${x.status==='published'?'draft':'published'}">${x.status==='published'?'Dépublier':'Publier'}</button><button class="small-action" data-download-id="${escapeHtml(x.id)}" data-download-kind="${x.kind}" data-next-download="${!x.allow_offline_download}">${x.allow_offline_download?'Retirer ELITE':'Autoriser ELITE'}</button></div></td></tr>`}).join('')||'<tr><td colspan="6" class="table-empty">Aucun contenu enregistré. Utilise « Publier un média » pour commencer.</td></tr>';
   }
   async function publishContent(event) {
     event.preventDefault();
     const errorNode=document.getElementById('publishError');errorNode.textContent='';
-    const type=document.getElementById('publishType').value,title=document.getElementById('publishTitle').value.trim(),file=document.getElementById('publishFile').files[0];
+    const type=document.getElementById('publishType').value,title=document.getElementById('publishTitle').value.trim(),file=document.getElementById('publishFile').files[0],posterFile=document.getElementById('publishPosterFile').files[0],previewFilePublic=document.getElementById('publishPreviewFile').files[0],format=document.getElementById('publishFormat').value;
     if(!title||!file){errorNode.textContent='Le titre et le fichier média sont obligatoires.';return}
+    if(type==='movie'&&!posterFile){errorNode.textContent='Importe une miniature personnalisée avant de publier la vidéo.';return}
+    if(type==='movie'&&document.getElementById('publishNow').checked&&!previewFilePublic){errorNode.textContent='Ajoute un fichier d’aperçu public séparé avant de publier. La vidéo complète restera privée.';return}
+    if(posterFile&&posterFile.size>10*1024*1024){errorNode.textContent='La miniature doit peser 10 Mo maximum.';return}
+    if(previewFilePublic&&(!previewFilePublic.type.startsWith('video/')||previewFilePublic.size>250*1024*1024)){errorNode.textContent='L’aperçu doit être une vidéo de 250 Mo maximum.';return}
     const max=2*1024*1024*1024;
     if(file.size>max){errorNode.textContent='Le fichier dépasse la limite de 2 Go configurée.';return}
     if(type==='movie'&&!file.type.startsWith('video/')){errorNode.textContent='Choisis un fichier vidéo.';return}
@@ -182,16 +188,31 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
       const start=Math.max(0,Number(document.getElementById('clipStart').value)||0),rawEnd=document.getElementById('clipEnd').value.trim(),end=rawEnd?Number(rawEnd):preview.duration;
       if(!Number.isFinite(preview.duration)){errorNode.textContent='Attends que l’aperçu vidéo soit chargé avant de publier.';return}
       if(start>=end||end>preview.duration){errorNode.textContent='Les points de découpe doivent être compris dans la durée de la vidéo.';return}
+      if(format==='short'&&(end-start<60||end-start>120)){errorNode.textContent='Un Short doit durer entre 1 et 2 minutes. Ajuste les points de début et de fin.';return}
+      if(previewFilePublic&&previewFilePublic.size>250*1024*1024){errorNode.textContent='L’aperçu public dépasse la limite de 250 Mo.';return}
     }
     const submit=document.getElementById('publishSubmit');submit.disabled=true;submit.textContent='Téléversement en cours…';
     try{
       const id=crypto.randomUUID(),safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'),path=`${type==='movie'?'movies':'music'}/${id}/${safeName}`;
       const upload=await supabase.storage.from(BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false,cacheControl:'3600'});
       if(upload.error)throw upload.error;
+      let posterPath=null,previewPath=null;
+      if(type==='movie'&&posterFile){
+        const posterName=posterFile.name.replace(/[^a-zA-Z0-9._-]/g,'_'),posterStoragePath=`posters/${id}/${crypto.randomUUID()}-${posterName}`;
+        const posterUpload=await supabase.storage.from('holyview-posters').upload(posterStoragePath,posterFile,{contentType:posterFile.type,upsert:false,cacheControl:'31536000'});
+        if(posterUpload.error)throw posterUpload.error;
+        posterPath=supabase.storage.from('holyview-posters').getPublicUrl(posterStoragePath).data.publicUrl;
+      }
+      if(type==='movie'&&previewFilePublic){
+        const previewName=previewFilePublic.name.replace(/[^a-zA-Z0-9._-]/g,'_'),previewStoragePath=`previews/${id}/${crypto.randomUUID()}-${previewName}`;
+        const previewUpload=await supabase.storage.from(BUCKET).upload(previewStoragePath,previewFilePublic,{contentType:previewFilePublic.type,upsert:false,cacheControl:'3600'});
+        if(previewUpload.error)throw previewUpload.error;
+        previewPath=previewStoragePath;
+      }
       const published=document.getElementById('publishNow').checked,status=published?'published':'draft',download=document.getElementById('publishDownload').checked;
       const base={title,slug:`${slugify(title)||type}-${id.slice(0,8)}`,status,published_at:published?new Date().toISOString():null,allow_offline_download:download};
       if(type==='movie'){
-        const payload={...base,synopsis:document.getElementById('publishSynopsis').value.trim()||null,poster_path:document.getElementById('publishPoster').value.trim()||null,release_year:Number(document.getElementById('publishYear').value)||null,video_asset_path:path,is_featured:document.getElementById('publishFeatured').checked,clip_start_seconds:Number(document.getElementById('clipStart').value)||0,clip_end_seconds:document.getElementById('clipEnd').value.trim()?Number(document.getElementById('clipEnd').value):null,subtitles:window.hvPreparedSubtitles?[window.hvPreparedSubtitles]:[]};
+        const payload={...base,synopsis:document.getElementById('publishSynopsis').value.trim()||null,poster_path:posterPath,release_year:Number(document.getElementById('publishYear').value)||null,video_asset_path:path,preview_asset_path:previewPath,display_format:format,duration_seconds:Number.isFinite(preview.duration)?Math.round(preview.duration):null,preview_duration_seconds:30,is_featured:document.getElementById('publishFeatured').checked,clip_start_seconds:Number(document.getElementById('clipStart').value)||0,clip_end_seconds:document.getElementById('clipEnd').value.trim()?Number(document.getElementById('clipEnd').value):null,subtitles:window.hvPreparedSubtitles?[window.hvPreparedSubtitles]:[]};
         const {error}=await supabase.from('movies').insert(payload);if(error)throw error;
       }else{
         const artistName=document.getElementById('publishArtist').value.trim();
@@ -199,7 +220,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
         if(artistName){const {data:artist,error:artistError}=await supabase.from('artists').insert({name:artistName,slug:`${slugify(artistName)||'artiste'}-${id.slice(0,8)}`}).select('id').single();if(artistError)throw artistError;artist_id=artist.id}
         const {error}=await supabase.from('music_tracks').insert({...base,audio_asset_path:path,artist_id});if(error)throw error;
       }
-      document.getElementById('publishForm').reset();window.hvPreparedSubtitles=null;document.getElementById('subtitleStatus').textContent='Aucun sous-titre ajouté.';if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}preview.removeAttribute('src');preview.load();preview.hidden=true;previewEmpty.hidden=false;document.getElementById('publishYear').value=new Date().getFullYear();document.getElementById('publishNow').checked=true;
+      document.getElementById('publishForm').reset();document.getElementById('publishYear').value=new Date().getFullYear();window.hvPreparedSubtitles=null;document.getElementById('subtitleStatus').textContent='Aucun sous-titre ajouté.';if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}preview.removeAttribute('src');preview.load();preview.hidden=true;previewEmpty.hidden=false;document.getElementById('publishYear').value=new Date().getFullYear();document.getElementById('publishNow').checked=true;
       toast('Contenu enregistré.');notice('Le média a été téléversé dans le stockage privé et enregistré dans le catalogue.','success');await refreshAll();showPane('content');
     }catch(error){console.error('HOLYVIEW publish',error);errorNode.textContent=error.message||'Impossible de publier ce média. Vérifie les droits administrateur et les règles de stockage.'}
     finally{submit.disabled=false;submit.textContent='Téléverser et enregistrer ↗'}
@@ -217,7 +238,8 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
   document.getElementById('revenuePeriod').addEventListener('change',renderRevenue);
   document.getElementById('userSearch').addEventListener('input',renderUsers);
   document.querySelectorAll('[data-content-filter]').forEach(b=>b.addEventListener('click',()=>{contentFilter=b.dataset.contentFilter;document.querySelectorAll('[data-content-filter]').forEach(x=>x.classList.toggle('active',x===b));renderContent()}));
-  document.getElementById('publishType').addEventListener('change',e=>{const track=e.target.value==='track';document.getElementById('publishSynopsisWrap').hidden=track;document.getElementById('publishArtistWrap').hidden=!track;document.getElementById('videoEditor').hidden=track;document.getElementById('publishFile').accept=track?'audio/mpeg,audio/mp4,audio/aac,audio/ogg':'video/mp4,video/webm';document.getElementById('publishFile').value='';if(track){preview.hidden=true;previewEmpty.hidden=false}});
+  document.getElementById('publishType').addEventListener('change',e=>{const track=e.target.value==='track';document.getElementById('publishSynopsisWrap').hidden=track;document.getElementById('publishArtistWrap').hidden=!track;document.getElementById('videoEditor').hidden=track;document.getElementById('previewUploadWrap').hidden=track;document.getElementById('publishPosterFile').required=!track;document.getElementById('publishPreviewFile').required=!track&&document.getElementById('publishNow').checked;document.getElementById('publishFormat').disabled=track;document.getElementById('publishFile').accept=track?'audio/mpeg,audio/mp4,audio/aac,audio/ogg':'video/mp4,video/webm';document.getElementById('publishFile').value='';if(track){preview.hidden=true;previewEmpty.hidden=false}});
+  document.getElementById('publishNow').addEventListener('change',e=>{document.getElementById('publishPreviewFile').required=document.getElementById('publishType').value==='movie'&&e.target.checked});
   document.getElementById('publishForm').addEventListener('submit',publishContent);
   const preview=document.getElementById('publishPreview'), previewFile=document.getElementById('publishFile'), previewEmpty=document.getElementById('previewEmpty'); let previewUrl=null, subtitleUrl=null;
   previewFile.addEventListener('change',()=>{const file=previewFile.files?.[0];if(!file||!file.type.startsWith('video/')){preview.hidden=true;previewEmpty.hidden=false;return}if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=URL.createObjectURL(file);preview.src=previewUrl;preview.hidden=false;previewEmpty.hidden=true;document.getElementById('clipStart').value='0';document.getElementById('clipEnd').value='';});

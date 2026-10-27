@@ -53,8 +53,8 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
           <video id="publishPreview" controls playsinline preload="metadata" hidden></video>
           <div id="previewEmpty" class="preview-empty">Choisis un fichier vidéo pour afficher son aperçu ici.</div>
           <div class="admin-two-fields">
-            <label>Début (secondes)<input id="clipStart" type="number" min="0" step="0.1" value="0"></label>
-            <label>Fin (secondes)<input id="clipEnd" type="number" min="0" step="0.1" placeholder="Fin du fichier"></label>
+            <label>Début (secondes)<input id="clipStart" type="number" min="0" step="1" value="0"></label>
+            <label>Fin (secondes)<input id="clipEnd" type="number" min="0" step="1" placeholder="Fin du fichier"></label>
           </div>
           <div class="editor-actions"><button type="button" class="small-action" id="previewClip">▶ Prévisualiser l’extrait</button><button type="button" class="small-action" id="resetClip">Réinitialiser les points</button></div>
           <small class="editor-help">Les points de début et de fin définissent l’extrait diffusé sur HOLYVIEW. Le fichier source original reste conservé : cette version ne réencode pas le fichier.</small>

@@ -10,7 +10,7 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'
 const slugify = value => String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70);
 const BUCKET = 'holyview-private';
 
-export function attachAdminDashboard({supabase, getUser, toast}) {
+export async function attachAdminDashboard({supabase, getUser, toast}) {
   const navRight = document.querySelector('.navright');
   if (!navRight || document.getElementById('adminOpen')) return;
   const openBtn = document.createElement('button');

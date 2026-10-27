@@ -15,3 +15,56 @@
  .nav:has(#adminOpen.selected) .admin-open{padding:8px 9px}
  .nav:has(#adminOpen.selected) .navright .btn-pink{padding:8px 9px;font-size:10px}
 }
+
+/* HOLYVIEW video-first public catalogue */
+#signupOpen[hidden],#musicNav[hidden],#music[hidden],#categories[hidden],#memberCta[hidden]{display:none!important}
+.nav .navright{gap:9px}
+.nav #signupOpen{white-space:nowrap}
+.video-card-stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;color:#aaaab7;font-size:10px}
+.poster.poster-video{aspect-ratio:16/9;background:#050507;overflow:hidden}
+.poster.poster-short{aspect-ratio:9/16;background:#050507;overflow:hidden}
+.poster.poster-video img,.poster.poster-short img{width:100%;height:100%;object-fit:contain!important;background:#050507}
+.poster .poster-play{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 10px;font-size:10px}
+.card.short-card{max-width:230px}
+.card.video-card{min-width:0}
+.video-detail-modal{position:fixed;inset:0;z-index:900;background:#050508ed;backdrop-filter:blur(14px);display:grid;place-items:center;padding:clamp(10px,3vw,34px);overflow:auto}
+.video-detail-modal[hidden]{display:none!important}
+.video-detail-window{width:min(1080px,100%);max-height:94vh;overflow:auto;background:#101117;border:1px solid #32333d;border-radius:17px;box-shadow:0 28px 100px #000b}
+.video-detail-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 20px;border-bottom:1px solid #2b2c35;position:sticky;top:0;background:#101117f5;z-index:2}
+.video-detail-head strong,.video-detail-head small{display:block}
+.video-detail-head strong{font-size:15px;color:#fff}
+.video-detail-head small{font-size:10px;color:#b8ef79;margin-top:4px}
+.video-detail-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,1fr)}
+.video-detail-main{padding:18px;min-width:0}
+.detail-video-stage{position:relative;background:#050507;border-radius:12px;overflow:hidden;min-height:160px;display:grid;place-items:center}
+#detailPreview{display:block;width:100%;max-height:62vh;aspect-ratio:16/9;object-fit:contain;background:#050507}
+#detailPreview.detail-short{width:auto;max-width:100%;height:min(62vh,720px);aspect-ratio:9/16}
+.detail-short-stage{min-height:220px}
+.detail-preview-message{position:absolute;bottom:0;left:0;right:0;padding:9px 12px;background:linear-gradient(transparent,#000b);color:#ddd;font-size:10px;pointer-events:none}
+#detailSynopsis{color:#bdbdc9;font-size:12px;line-height:1.7;margin:14px 0}
+.detail-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:12px 0 16px}
+.detail-actions span{font-size:10px;color:#a5a5b3}
+#detailFullWatch{margin-bottom:15px}
+#detailFullWatch[hidden],#detailJoin[hidden]{display:none!important}
+.detail-comments{border-top:1px solid #2d2e38;padding-top:15px;margin-top:10px}
+.detail-comments h3{font-size:14px;margin:0 0 12px}
+#detailCommentsList{display:grid;gap:8px;max-height:250px;overflow:auto}
+.detail-comment{border:1px solid #2b2c36;border-radius:9px;padding:10px 12px;background:#15161d}
+.detail-comment small,.detail-muted{font-size:10px;color:#9d9dab}
+.detail-comment p{font-size:12px;color:#e5e5ec;line-height:1.5;margin:6px 0 0;overflow-wrap:anywhere}
+#detailCommentForm{display:grid;gap:9px;margin-top:12px}
+#detailCommentForm textarea{width:100%;resize:vertical;min-height:68px;background:#0b0c11;border:1px solid #363742;border-radius:9px;color:#fff;padding:11px;font:inherit;font-size:12px}
+#detailCommentForm .btn{justify-self:start}
+#detailCommentForm[hidden]{display:none!important}
+@media(max-width:760px){
+ .video-detail-modal{padding:0;align-items:stretch}
+ .video-detail-window{max-height:100vh;min-height:100%;border-radius:0}
+ .video-detail-layout{grid-template-columns:1fr}
+ .video-detail-head{padding:12px}
+ .video-detail-main{padding:12px}
+ #detailPreview{max-height:46vh}
+ #detailPreview.detail-short{height:46vh}
+ .card.short-card{max-width:180px}
+ .nav .navright{gap:5px}
+ .nav #authOpen,.nav #signupOpen{padding:8px 10px;font-size:10px}
+}

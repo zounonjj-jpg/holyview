@@ -66,7 +66,8 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
       </form></article>
       <article class="admin-panel admin-guidance"><div class="admin-guidance-icon">✦</div><h2>Publication responsable</h2><p>Avant de publier, vérifie les droits de diffusion, la licence musicale, l’autorisation des ayants droit et l’âge recommandé.</p><ul><li>Les fichiers sont stockés dans un bucket privé.</li><li>Les visiteurs ne reçoivent pas de lien public permanent.</li><li>Le statut « publié » rend la fiche visible au catalogue.</li><li>La lecture protégée doit être autorisée par le serveur.</li></ul><div class="admin-security-note">La formule ELITE ne rend pas automatiquement un média téléchargeable : la case dédiée doit être cochée par l’administrateur.</div></article></div></section>
   `;
-  const navRefresh=document.createElement('button'); navRefresh.id='adminRefreshNav'; navRefresh.className='btn btn-glass admin-refresh-nav'; navRefresh.textContent='↻ Actualiser'; navRefresh.hidden=true; navRight.insertBefore(navRefresh, openBtn.nextSibling);\n  app.insertBefore(admin, document.querySelector('.footer'));
+  const navRefresh=document.createElement('button'); navRefresh.id='adminRefreshNav'; navRefresh.className='btn btn-glass admin-refresh-nav'; navRefresh.textContent='↻ Actualiser'; navRefresh.hidden=true; navRight.insertBefore(navRefresh, openBtn.nextSibling);
+  app.insertBefore(admin, document.querySelector('.footer'));
   let isAdmin = false;
   let users = [], subscriptions = [], payments = [], movies = [], tracks = [], contentFilter = 'all';
 

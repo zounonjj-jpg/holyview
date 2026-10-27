@@ -122,37 +122,58 @@ function setupInstallPrompt(){
  const banner=$('installBanner'),button=$('installAppButton'),help=$('installHelp');
  const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
  const appleMobile=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const safariDesktop=()=>/Safari/i.test(navigator.userAgent)&&!/Chrome|Chromium|CriOS|Edg|OPR|Firefox|Android/i.test(navigator.userAgent);
+ const unsupportedBrowser=()=>/Firefox/i.test(navigator.userAgent)&&!appleMobile();
  if(standalone()){banner.hidden=true;return}
  banner.hidden=false;
- button.disabled=false;button.textContent='Installer';
- help.textContent='Appuie sur Installer pour ouvrir directement la demande d’installation native dès que le navigateur la propose.';
+ button.disabled=!appleMobile()&&!safariDesktop()&&!deferredInstallPrompt;
+ button.textContent='Installer';
+ help.textContent=appleMobile()
+   ?'Sur iPhone et iPad, Apple ne permet pas à un site d’ouvrir directement la fenêtre d’installation. Le bouton te montrera la seule méthode disponible.'
+   :safariDesktop()
+     ?'Sur Safari pour Mac, l’installation se lance depuis le menu du navigateur ; Safari ne fournit pas de fenêtre déclenchable par le site.'
+     :'Préparation de l’installation native. Le bouton s’activera dès que le navigateur autorisera l’ouverture directe de sa fenêtre.';
  window.addEventListener('beforeinstallprompt',e=>{
    e.preventDefault();
    deferredInstallPrompt=e;
-   button.disabled=false;button.textContent='Installer maintenant';
-   help.textContent='HOLYVIEW est prête à être installée sur cet appareil.';
+   button.disabled=false;
+   button.textContent='Installer maintenant';
+   help.textContent='HOLYVIEW est prête à être installée. Appuie sur Installer maintenant pour ouvrir la fenêtre native du navigateur.';
    banner.hidden=false;
  });
  window.addEventListener('appinstalled',()=>{
-   deferredInstallPrompt=null;banner.hidden=true;
+   deferredInstallPrompt=null;
+   banner.hidden=true;
    toast('HOLYVIEW est installé sur cet appareil.');
  });
  button.onclick=async()=>{
    if(standalone()){banner.hidden=true;return}
    if(!deferredInstallPrompt){
      if(appleMobile()){
-       help.textContent='Sur iPhone ou iPad, le navigateur ne permet pas d’ouvrir lui-même la fenêtre d’installation. Ouvre le menu Partager puis choisis « Sur l’écran d’accueil ».';
-       button.textContent='Installation manuelle requise';
-     }else{
-       help.textContent='Le navigateur n’a pas encore proposé l’installation directe. Essaie Chrome ou Edge à jour, et réessaie dès que l’installation est disponible.';
-       button.textContent='Réessayer';
+       help.textContent='Sur iPhone ou iPad : ouvre HOLYVIEW dans Safari, appuie sur Partager, puis choisis « Sur l’écran d’accueil ». Il n’existe pas d’API permettant à HOLYVIEW de lancer cette action automatiquement.';
+       button.textContent='Voir la méthode iPhone / iPad';
+       return;
      }
-     toast('Le navigateur ne propose pas encore l’installation directe.');
+     if(safariDesktop()){
+       help.textContent='Sur Mac : dans Safari, utilise le menu Fichier puis « Ajouter au Dock… ». Le navigateur ne permet pas au site de déclencher directement cette commande.';
+       button.textContent='Voir la méthode Safari';
+       return;
+     }
+     if(unsupportedBrowser()){
+       help.textContent='Ce navigateur ne propose pas l’installation directe de PWA. Pour installer HOLYVIEW comme application, ouvre ce site dans une version récente de Chrome ou Edge.';
+       button.textContent='Navigateur non compatible';
+       button.disabled=true;
+       return;
+     }
+     help.textContent='La demande d’installation native n’est pas encore disponible. Garde cette page ouverte : le bouton s’activera automatiquement lorsque le navigateur aura confirmé que HOLYVIEW peut être installée.';
+     button.disabled=true;
+     button.textContent='Préparation…';
      return;
    }
    const installEvent=deferredInstallPrompt;
    deferredInstallPrompt=null;
-   button.disabled=true;button.textContent='Ouverture de l’installation…';
+   button.disabled=true;
+   button.textContent='Ouverture de l’installation…';
    try{
      await installEvent.prompt();
      const choice=await installEvent.userChoice;
@@ -160,12 +181,14 @@ function setupInstallPrompt(){
        banner.hidden=true;
        toast('Demande d’installation acceptée.');
      }else{
-       button.disabled=false;button.textContent='Installer maintenant';
-       help.textContent='La demande a été fermée. Appuie sur Installer pour relancer la demande si elle reste disponible.';
+       button.disabled=true;
+       button.textContent='Installer';
+       help.textContent='La demande a été fermée. Le navigateur décidera quand une nouvelle demande pourra être présentée.';
      }
    }catch(error){
-     button.disabled=false;button.textContent='Réessayer';
-     help.textContent='Le navigateur n’a pas pu ouvrir sa fenêtre d’installation sur cet appareil.';
+     button.disabled=false;
+     button.textContent='Réessayer';
+     help.textContent='Le navigateur n’a pas pu ouvrir la fenêtre native. Actualise la page puis réessaie.';
      console.warn('HOLYVIEW install prompt',error);
    }
  };

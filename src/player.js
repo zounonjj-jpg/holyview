@@ -64,7 +64,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     const user=getUser();
     if(!user){openAuth('login');toast('Connecte-toi pour accéder à ce média.');return}
     opening=true;message.textContent='Vérification de tes droits de lecture…';message.className='hv-player-message';modal.hidden=false;
-    title.textContent=detail.item.title||'HOLYVIEW';subtitle.textContent=detail.kind==='movie'?'Film · lecture sécurisée':'Musique · lecture sécurisée';
+    title.textContent=detail.item.title||'HOLYVIEW';subtitle.textContent=detail.kind==='movie'?(detail.item.display_format==='short'?'Short · lecture sécurisée · cadrage 9:16':'Vidéo · lecture sécurisée · cadrage préservé'):'Musique · lecture sécurisée';video.classList.toggle('hv-short',detail.kind==='movie'&&detail.item.display_format==='short');
     try{
       await stopSession();
       const data=await invoke({action:'authorize',mediaType:detail.kind,mediaId:detail.item.id});

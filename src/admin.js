@@ -234,7 +234,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
     const commentsBtn=e.target.closest('[data-comments-id]');
     if(commentsBtn){
       const panel=document.getElementById('adminVideoComments'),list=document.getElementById('adminVideoCommentsList');
-      document.getElementById('adminVideoCommentsTitle').textContent='Commentaires · '+commentsBtn.dataset.commentsTitle;
+      document.getElementById('adminVideoCommentsTitle').textContent='Commentaires · '+commentsBtn.dataset.commentsTitle;panel.dataset.movieId=commentsBtn.dataset.commentsId;
       panel.hidden=false;list.innerHTML='<p class="muted-text">Chargement des commentaires…</p>';
       const {data,error}=await supabase.from('video_comments').select('id,body,created_at,user_id,is_hidden').eq('movie_id',commentsBtn.dataset.commentsId).order('created_at',{ascending:false}).limit(200);
       if(error){list.innerHTML='<p class="admin-error">Impossible de charger les commentaires.</p>';return}
@@ -242,7 +242,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
       panel.scrollIntoView({behavior:'smooth',block:'start'});return;
     }
     const moderation=e.target.closest('[data-moderate-comment]');
-    if(moderation){const {error}=await supabase.from('video_comments').update({is_hidden:moderation.dataset.nextHidden==='true'}).eq('id',moderation.dataset.moderateComment);if(error){notice('Modération impossible.','error');return}toast('Commentaire modéré.');await refreshAll();const active=document.querySelector('[data-comments-id]');if(active)active.click();return}
+    if(moderation){const {error}=await supabase.from('video_comments').update({is_hidden:moderation.dataset.nextHidden==='true'}).eq('id',moderation.dataset.moderateComment);if(error){notice('Modération impossible.','error');return}toast('Commentaire modéré.');await refreshAll();const active=admin.querySelector('[data-comments-id="'+document.getElementById('adminVideoComments').dataset.movieId+'"]');if(active)active.click();return}
     const jump=e.target.closest('[data-jump-tab]');if(jump){showPane(jump.dataset.jumpTab);return}
     const statusBtn=e.target.closest('[data-status-id]');if(statusBtn){const kind=statusBtn.dataset.statusKind,id=statusBtn.dataset.statusId,next=statusBtn.dataset.nextStatus;statusBtn.disabled=true;try{const table=kind==='movie'?'movies':'music_tracks';const {error}=await supabase.from(table).update({status:next,published_at:next==='published'?new Date().toISOString():null}).eq('id',id);if(error)throw error;toast(next==='published'?'Contenu publié.':'Contenu dépublié.');await refreshAll()}catch(error){notice(error.message||'Modification impossible.','error')}return}
     const dlBtn=e.target.closest('[data-download-id]');if(dlBtn){const table=dlBtn.dataset.downloadKind==='movie'?'movies':'music_tracks';const {error}=await supabase.from(table).update({allow_offline_download:dlBtn.dataset.nextDownload==='true'}).eq('id',dlBtn.dataset.downloadId);if(error)notice(error.message||'Modification impossible.','error');else{toast('Autorisation ELITE mise à jour.');await refreshAll()}}

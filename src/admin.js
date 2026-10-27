@@ -1,3 +1,4 @@
+import './admin.css';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://rewzjcmaexthotbimacu.supabase.co';

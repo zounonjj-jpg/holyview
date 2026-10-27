@@ -45,3 +45,17 @@ npm run preview
 
 - Application : https://holyview.vercel.app
 - Dépôt : https://github.com/zounonjj-jpg/holyview
+
+
+## Identité visuelle — couleurs à conserver dans le cahier des charges
+
+- **Fond principal / nuit :** `#09090D`
+- **Panneaux :** `#13141A` et `#1A1B23`
+- **Texte principal :** `#F8F7FB`
+- **Texte secondaire :** `#A5A4B0`
+- **Or / champagne / lumière du nom JÉSUS :** tons `#FFF4C6`, `#D5AC5D`, `#BD8D3D`
+- **Rose accent :** `#F45B9B`
+- **Vert accent / actions :** `#B8EF79`
+- **Lignes et séparateurs :** `#2B2C35`
+
+Le nom **JÉSUS** est traité comme une animation typographique élégante (lettres dorées, reflet métallique, apparition séquencée et halo subtil), sans illustration ni personnage représentant Jésus. Les couleurs officielles ci-dessus doivent rester cohérentes dans l’accueil, le catalogue, les Shorts, l’administration, la PWA et les documents du cahier des charges.

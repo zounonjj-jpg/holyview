@@ -97,7 +97,21 @@
 .jesus-showcase{position:relative;z-index:1;flex:0 1 44%;width:min(44vw,530px);height:490px;min-width:270px;display:grid;place-items:center;isolation:isolate;margin:0 auto 0 0;animation:holy-reveal 1.4s cubic-bezier(.18,.72,.2,1) both}
 .jesus-showcase:before{content:"";position:absolute;inset:13% 10% 11%;z-index:-2;border-radius:50%;background:radial-gradient(ellipse,#f5d98d24 0%,#e0bd6a0d 43%,transparent 72%);filter:blur(8px);animation:holy-breathe 7s ease-in-out infinite}
 .jesus-showcase:after{content:"";position:absolute;inset:8% 12%;z-index:-3;border-radius:50%;border:1px solid #f4dc9e22;box-shadow:0 0 80px #dcb86d0c,inset 0 0 55px #dcb86d0a}
-.jesus-art{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 20px 45px #d9b66020)}
+.wordmark-stage{overflow:visible}
+.jesus-wordmark{position:relative;z-index:1;display:grid;justify-items:center;gap:22px;width:100%;padding:25px 0;text-align:center}
+.jesus-wordmark-kicker{font:800 10px Manrope,sans-serif;letter-spacing:5px;color:#f1dca7;opacity:0;animation:wordmark-kicker 1s .25s ease forwards}
+.jesus-wordmark-title{position:relative;display:flex;justify-content:center;gap:clamp(1px,.55vw,8px);font:500 clamp(62px,8.3vw,112px)/.95 Georgia,'Times New Roman',serif;letter-spacing:.025em;color:transparent;background:linear-gradient(115deg,#9b7432 0%,#fff4c6 17%,#d5ac5d 31%,#fffbe5 46%,#bd8d3d 61%,#fff0b2 76%,#9d7028 100%);background-size:240% 100%;background-clip:text;-webkit-background-clip:text;filter:drop-shadow(0 0 14px #f0cf7c38);animation:wordmark-metal 7s ease-in-out infinite,wordmark-rise 1.2s cubic-bezier(.2,.8,.2,1) both}
+.jesus-wordmark-title span{display:inline-block;opacity:0;transform:translateY(30px) rotateX(-35deg);animation:wordmark-letter .8s cubic-bezier(.16,.8,.2,1) forwards}
+.jesus-wordmark-title span:nth-child(1){animation-delay:.12s}.jesus-wordmark-title span:nth-child(2){animation-delay:.24s}.jesus-wordmark-title span:nth-child(3){animation-delay:.36s}.jesus-wordmark-title span:nth-child(4){animation-delay:.48s}.jesus-wordmark-title span:nth-child(5){animation-delay:.60s}
+.jesus-wordmark-subtitle{font:700 10px Manrope,sans-serif;letter-spacing:clamp(3px,.7vw,7px);color:#e8d5a3;text-shadow:0 0 18px #f4d58d22;opacity:0;animation:wordmark-kicker 1s .9s ease forwards}
+.showcase-spark{position:absolute;color:#fff1be;text-shadow:0 0 14px #f4d58d;font-size:22px;z-index:2;animation:holy-sparkle 3.8s ease-in-out infinite}
+.spark-one{top:14%;left:18%}.spark-two{right:12%;top:36%;font-size:28px;animation-delay:1.2s}.spark-three{left:15%;bottom:24%;font-size:15px;animation-delay:2s}
+.jesus-caption{position:absolute;bottom:1.5%;left:0;right:0;display:grid;gap:7px;text-align:center;color:#d9c79d;letter-spacing:2.8px;font-size:9px;text-shadow:0 2px 10px #000}
+.jesus-caption strong{font:800 12px Manrope,sans-serif;letter-spacing:2.2px;color:#fff0c3}
+@keyframes wordmark-letter{to{opacity:1;transform:translateY(0) rotateX(0)}}
+@keyframes wordmark-rise{0%{filter:blur(8px) drop-shadow(0 0 0 transparent);transform:translateY(16px) scale(.96)}100%{filter:blur(0) drop-shadow(0 0 14px #f0cf7c38);transform:translateY(0) scale(1)}}
+@keyframes wordmark-metal{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes wordmark-kicker{from{opacity:0;letter-spacing:9px;transform:translateY(8px)}to{opacity:1;letter-spacing:5px;transform:translateY(0)}}
 .showcase-orbit{position:absolute;z-index:0;border:1px solid #f0d79735;pointer-events:none;box-shadow:0 0 18px #e8ca8420}
 .orbit-one{width:91%;height:37%;border-radius:50%;transform:rotate(-28deg);animation:holy-orbit 34s linear infinite}
 .orbit-two{width:72%;height:91%;border-radius:50%;transform:rotate(26deg);border-color:#fff0c01e;animation:holy-orbit-reverse 48s linear infinite}
@@ -118,5 +132,5 @@
 @keyframes holy-orbit-reverse{to{transform:rotate(-334deg)}}
 @keyframes holy-sparkle{0%,100%{opacity:.42;transform:scale(.82) rotate(-8deg)}50%{opacity:1;transform:scale(1.18) rotate(10deg)}}
 @media(max-width:900px){.hero{padding-left:5%;padding-right:5%;gap:8px}.jesus-showcase{width:42vw;min-width:235px;height:420px}.hero-content{flex-basis:56%}.hero h1{font-size:clamp(39px,5vw,58px)}}
-@media(max-width:680px){.hero{min-height:auto;flex-direction:column;align-items:stretch;padding:112px 6% 38px;gap:10px}.hero-content{flex:0 1 auto;width:100%;max-width:none}.hero h1{font-size:clamp(42px,11vw,60px);margin:19px 0}.hero p{font-size:13px}.hero .actions{gap:8px}.hero .actions .btn{font-size:10px;padding:11px 12px}.hero-benefits{gap:8px;flex-wrap:wrap}.jesus-showcase{width:min(100%,390px);height:340px;min-width:0;align-self:center;margin:4px auto 0}.jesus-caption{bottom:0}.jesus-caption strong{font-size:10px}.shorts-cards{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}.shorts-cards .poster{max-height:none}}
-@media(prefers-reduced-motion:reduce){.jesus-showcase,.showcase-orbit,.showcase-spark{animation:none!important;transition:none!important}}
+@media(max-width:680px){.hero{min-height:auto;flex-direction:column;align-items:stretch;padding:112px 6% 38px;gap:10px}.hero-content{flex:0 1 auto;width:100%;max-width:none}.hero h1{font-size:clamp(42px,11vw,60px);margin:19px 0}.hero p{font-size:13px}.hero .actions{gap:8px}.hero .actions .btn{font-size:10px;padding:11px 12px}.hero-benefits{gap:8px;flex-wrap:wrap}.jesus-showcase{width:min(100%,390px);height:300px;min-width:0;align-self:center;margin:4px auto 0}.jesus-wordmark{gap:17px}.jesus-wordmark-title{font-size:clamp(58px,15vw,84px)}.jesus-wordmark-kicker{font-size:9px}.jesus-wordmark-subtitle{font-size:9px}.jesus-caption{bottom:0}.jesus-caption strong{font-size:10px}.shorts-cards{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}.shorts-cards .poster{max-height:none}}
+@media(prefers-reduced-motion:reduce){.jesus-showcase,.showcase-orbit,.showcase-spark,.jesus-wordmark-title,.jesus-wordmark-title span,.jesus-wordmark-kicker,.jesus-wordmark-subtitle{animation:none!important;transition:none!important;opacity:1;transform:none;filter:none}}

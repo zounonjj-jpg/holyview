@@ -19,8 +19,9 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     try{
       const state=await invoke({action:'heartbeat',sessionId});
       if(state.stopped){
+        const target=heartbeatTarget;
         clearHeartbeat();
-        if(heartbeatTarget)heartbeatTarget.pause();
+        if(target)target.pause();
         message.textContent=state.error||'Accès interrompu.';
         message.className='hv-player-message error';
         return;
@@ -29,8 +30,9 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
         message.textContent=`Essai gratuit : environ ${Math.floor(state.trialRemainingSeconds/3600)} h ${Math.floor((state.trialRemainingSeconds%3600)/60)} min restantes.`;
       }
     }catch(error){
+      const target=heartbeatTarget;
       clearHeartbeat();
-      if(heartbeatTarget)heartbeatTarget.pause();
+      if(target)target.pause();
       message.textContent=error.message||'La vérification de la session a échoué.';
       message.className='hv-player-message error';
     }

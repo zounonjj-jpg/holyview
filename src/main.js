@@ -127,7 +127,8 @@ function setupInstallPrompt(){
  if(standalone()){banner.hidden=true;return}
  banner.hidden=false;
  button.disabled=!appleMobile()&&!safariDesktop()&&!unsupportedBrowser()&&!deferredInstallPrompt;
- button.textContent='Installer';
+ button.textContent=button.disabled?'Préparation…':'Installer';
+ button.setAttribute('aria-busy',String(button.disabled));
  help.textContent=appleMobile()
    ?'Sur iPhone et iPad, Apple ne permet pas à un site d’ouvrir directement la fenêtre d’installation. Le bouton te montrera la seule méthode disponible.'
    :safariDesktop()
@@ -139,6 +140,7 @@ function setupInstallPrompt(){
    e.preventDefault();
    deferredInstallPrompt=e;
    button.disabled=false;
+   button.setAttribute('aria-busy','false');
    button.textContent='Installer maintenant';
    help.textContent='HOLYVIEW est prête à être installée. Appuie sur Installer maintenant pour ouvrir la fenêtre native du navigateur.';
    banner.hidden=false;

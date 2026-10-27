@@ -12,7 +12,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     </div>`);
   const modal=document.getElementById('hvPlayerModal'),video=document.getElementById('hvVideo'),audio=document.getElementById('hvAudio');
   const title=document.getElementById('hvPlayerTitle'),subtitle=document.getElementById('hvPlayerSubtitle'),message=document.getElementById('hvPlayerMessage');
-  let sessionId=null, heartbeat=null, heartbeatTarget=null, opening=false;
+  let sessionId=null, heartbeat=null, heartbeatTarget=null, opening=false, activeClipStart=0, activeClipEnd=null, subtitleUrl=null;
   const clearHeartbeat=()=>{if(heartbeat){clearInterval(heartbeat);heartbeat=null}heartbeatTarget=null;};
   const sendHeartbeat=async()=>{
     if(!sessionId)return;
@@ -58,7 +58,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     video.pause();audio.pause();
     if(old){try{await supabase.functions.invoke('holyview-playback',{body:{action:'stop',sessionId:old}})}catch{}}
   };
-  const close=async()=>{await stopSession();modal.hidden=true;video.removeAttribute('src');audio.removeAttribute('src');video.load();audio.load();message.textContent='';message.className='hv-player-message'};
+  const close=async()=>{await stopSession();modal.hidden=true;video.removeAttribute('src');audio.removeAttribute('src');video.querySelectorAll('track').forEach(t=>t.remove());if(subtitleUrl){URL.revokeObjectURL(subtitleUrl);subtitleUrl=null}video.load();audio.load();message.textContent='';message.className='hv-player-message'};
   async function play(detail) {
     if(opening)return;
     const user=getUser();

@@ -45,7 +45,7 @@ async function openVideoDetails(item){
  $('detailSynopsis').textContent=item.synopsis||'Un contenu vidéo de HOLYVIEW.';
  $('detailPreviewMessage').textContent='Chargement de l’aperçu…';
  $('detailFullWatch').hidden=!currentUser;
- $('detailLike').disabled=!currentUser;
+ $('detailLike').disabled=false;$('detailLike').textContent=currentUser?'♡ J’aime':'♡ J’aime · se connecter';
  $('detailCommentForm').hidden=!currentUser;
  $('detailJoin').hidden=!!currentUser;
  $('detailJoin').onclick=()=>openAuth('signup');
@@ -73,6 +73,7 @@ async function refreshDetailStats(){
  $('detailCommentCount').textContent=Number(st.comment_count||0);
  $('detailShares').textContent=Number(st.share_count||0)+' partages';
  const likeBtn=$('detailLike');
+ if(!currentUser)likeBtn.textContent='♡ J’aime · se connecter';
  if(currentUser){
    const {data:like}=await supabase.from('video_likes').select('id').eq('movie_id',activeDetailMovie.id).eq('user_id',currentUser.id).maybeSingle();
    likeBtn.textContent=like?'♥ Aimé':'♡ J’aime';
@@ -158,7 +159,8 @@ function bindUI(){
  $('detailLike').onclick=async()=>{if(!currentUser){openAuth('login');return}const {data:like}=await supabase.from('video_likes').select('id').eq('movie_id',activeDetailMovie.id).eq('user_id',currentUser.id).maybeSingle();if(like){const {error}=await supabase.from('video_likes').delete().eq('id',like.id);if(error)toast('Impossible de retirer le J’aime.')}else{const {error}=await supabase.from('video_likes').insert({movie_id:activeDetailMovie.id,user_id:currentUser.id});if(error)toast('Impossible d’ajouter le J’aime.')}await refreshDetailStats();await loadCatalog();};
  $('detailCommentForm').onsubmit=async e=>{e.preventDefault();if(!currentUser){openAuth('login');return}const body=$('detailCommentInput').value.trim();if(!body)return;const {error}=await supabase.from('video_comments').insert({movie_id:activeDetailMovie.id,user_id:currentUser.id,body});if(error){toast('Le commentaire n’a pas pu être publié.');return}$('detailCommentInput').value='';await loadDetailComments();await refreshDetailStats();await loadCatalog();};
  $('detailShare').onclick=async()=>{if(!activeDetailMovie)return;const url=location.origin+'/#video-'+activeDetailMovie.slug;if(navigator.share){try{await navigator.share({title:activeDetailMovie.title,text:'Découvre cet aperçu sur HOLYVIEW',url})}catch{return}}else{try{await navigator.clipboard.writeText(url);toast('Lien copié.')}catch{toast(url)}}if(currentUser){const {error}=await supabase.from('video_shares').insert({movie_id:activeDetailMovie.id,user_id:currentUser.id,share_date:new Date().toISOString().slice(0,10)});if(error&&error.code!=='23505')console.warn('share tracking',error);await refreshDetailStats()}};
- $('detailFullWatch').onclick=async()=>{if(!currentUser){openAuth('login');return}const {error}=await supabase.from('video_views').insert({movie_id:activeDetailMovie.id,user_id:currentUser.id,view_date:new Date().toISOString().slice(0,10)});if(error&&error.code!=='23505')console.warn('view tracking',error);const item=activeDetailMovie;$('detailClose').click();window.dispatchEvent(new CustomEvent('holyview:play',{detail:{kind:'movie',item}}));await loadCatalog()};
+ $('detailLike').onclick=async()=>{if(!currentUser){openAuth('login');toast('Connecte-toi pour aimer cette vidéo.');return}const {data:like}=await supabase.from('video_likes').select('id').eq('movie_id',activeDetailMovie.id).eq('user_id',currentUser.id).maybeSingle();if(like){const {error}=await supabase.from('video_likes').delete().eq('id',like.id);if(error)toast('Impossible de retirer le J’aime.')}else{const {error}=await supabase.from('video_likes').insert({movie_id:activeDetailMovie.id,user_id:currentUser.id});if(error)toast('Impossible d’ajouter le J’aime.')}await refreshDetailStats();await loadCatalog()};
+ $('detailFullWatch').onclick=async()=>{if(!currentUser){openAuth('login');return}const item=activeDetailMovie;$('detailClose').click();window.dispatchEvent(new CustomEvent('holyview:play',{detail:{kind:'movie',item}}));await loadCatalog()};
  $('playerClose').onclick=()=>$('player').classList.remove('show');$('playToggle').onclick=()=>toast('Le lecteur sera connecté aux médias privés dans la prochaine étape.');
  supabase.auth.onAuthStateChange((_event,session)=>updateUser(session?.user||null));
 }

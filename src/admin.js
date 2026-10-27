@@ -71,7 +71,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
   const navRefresh=document.createElement('button'); navRefresh.id='adminRefreshNav'; navRefresh.className='btn btn-glass admin-refresh-nav'; navRefresh.textContent='↻ Actualiser'; navRefresh.hidden=true; navRight.insertBefore(navRefresh, openBtn.nextSibling);
   app.insertBefore(admin, document.querySelector('.footer'));
   let isAdmin = false;
-  let users = [], subscriptions = [], payments = [], movies = [], tracks = [], contentFilter = 'all';
+  let users = [], subscriptions = [], payments = [], movies = [], tracks = [], contentFilter = 'all', editingMovieId = null;
 
   const notice = (message, type='info') => { const node=document.getElementById('adminNotice'); node.textContent=message; node.className='admin-notice '+type; node.hidden=!message; };
   const showHome = () => { admin.hidden=true; navRefresh.hidden=true; homeNodes().forEach(node=>{if(node)node.hidden=false}); openBtn.classList.remove('selected'); window.scrollTo({top:0,behavior:'smooth'}); };
@@ -169,22 +169,22 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
   }
   function renderContent() {
     const all=[...movies.map(x=>({...x,kind:'movie',media:x.video_asset_path})),...tracks.map(x=>({...x,kind:'track',media:x.audio_asset_path}))].filter(x=>contentFilter==='all'||x.kind===contentFilter).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-    document.getElementById('contentTable').innerHTML=all.map(x=>{const stats=Array.isArray(x.movie_stats)?x.movie_stats[0]:x.movie_stats;return `<tr><td><strong>${escapeHtml(x.title)}</strong><small>${escapeHtml(x.slug||'')}</small></td><td>${x.kind==='track'?'Musique / audio':x.display_format==='short'?'Short · 9:16':'Vidéo · cadrage préservé'}</td><td>${x.kind==='movie'?'<strong>▶ '+Number(stats?.view_count||0)+' vues</strong><small>♥ '+Number(stats?.like_count||0)+' likes · '+Number(stats?.comment_count||0)+' commentaires</small>':'—'}</td><td><span class="status-pill ${escapeHtml(x.status)}">${escapeHtml(x.status)}</span></td><td>${x.allow_offline_download?'<span class="status-pill active">Autorisé</span>':'<span class="muted-text">Non autorisé</span>'}</td><td><div class="admin-actions"><button class="small-action" data-status-id="${escapeHtml(x.id)}" data-status-kind="${x.kind}" data-next-status="${x.status==='published'?'draft':'published'}">${x.status==='published'?'Dépublier':'Publier'}</button>${x.kind==='movie'?'<button class="small-action" data-comments-id="'+escapeHtml(x.id)+'" data-comments-title="'+escapeHtml(x.title)+'">Commentaires</button>':''}<button class="small-action" data-download-id="${escapeHtml(x.id)}" data-download-kind="${x.kind}" data-next-download="${!x.allow_offline_download}">${x.allow_offline_download?'Retirer ELITE':'Autoriser ELITE'}</button></div></td></tr>`}).join('')||'<tr><td colspan="6" class="table-empty">Aucun contenu enregistré. Utilise « Publier un média » pour commencer.</td></tr>';
+    document.getElementById('contentTable').innerHTML=all.map(x=>{const stats=Array.isArray(x.movie_stats)?x.movie_stats[0]:x.movie_stats;return `<tr><td><strong>${escapeHtml(x.title)}</strong><small>${escapeHtml(x.slug||'')}</small></td><td>${x.kind==='track'?'Musique / audio':x.display_format==='short'?'Short · 9:16':'Vidéo · cadrage préservé'}</td><td>${x.kind==='movie'?'<strong>▶ '+Number(stats?.view_count||0)+' vues</strong><small>♥ '+Number(stats?.like_count||0)+' likes · '+Number(stats?.comment_count||0)+' commentaires</small>':'—'}</td><td><span class="status-pill ${escapeHtml(x.status)}">${escapeHtml(x.status)}</span></td><td>${x.allow_offline_download?'<span class="status-pill active">Autorisé</span>':'<span class="muted-text">Non autorisé</span>'}</td><td><div class="admin-actions"><button class="small-action" data-status-id="${escapeHtml(x.id)}" data-status-kind="${x.kind}" data-next-status="${x.status==='published'?'draft':'published'}">${x.status==='published'?'Dépublier':'Publier'}</button>${x.kind==='movie'?'<button class="small-action" data-edit-movie="'+escapeHtml(x.id)+'">Modifier</button><button class="small-action" data-comments-id="'+escapeHtml(x.id)+'" data-comments-title="'+escapeHtml(x.title)+'">Commentaires</button>':''}<button class="small-action" data-download-id="${escapeHtml(x.id)}" data-download-kind="${x.kind}" data-next-download="${!x.allow_offline_download}">${x.allow_offline_download?'Retirer ELITE':'Autoriser ELITE'}</button></div></td></tr>`}).join('')||'<tr><td colspan="6" class="table-empty">Aucun contenu enregistré. Utilise « Publier un média » pour commencer.</td></tr>';
   }
   async function publishContent(event) {
     event.preventDefault();
     const errorNode=document.getElementById('publishError');errorNode.textContent='';
-    const type=document.getElementById('publishType').value,title=document.getElementById('publishTitle').value.trim(),file=document.getElementById('publishFile').files[0],posterFile=document.getElementById('publishPosterFile').files[0],previewFilePublic=document.getElementById('publishPreviewFile').files[0],format=document.getElementById('publishFormat').value;
-    if(!title||!file){errorNode.textContent='Le titre et le fichier média sont obligatoires.';return}
-    if(type==='movie'&&!posterFile){errorNode.textContent='Importe une miniature personnalisée avant de publier la vidéo.';return}
-    if(type==='movie'&&document.getElementById('publishNow').checked&&!previewFilePublic){errorNode.textContent='Ajoute un fichier d’aperçu public séparé avant de publier. La vidéo complète restera privée.';return}
+    const type=document.getElementById('publishType').value,title=document.getElementById('publishTitle').value.trim(),file=document.getElementById('publishFile').files[0],posterFile=document.getElementById('publishPosterFile').files[0],previewFilePublic=document.getElementById('publishPreviewFile').files[0],format=document.getElementById('publishFormat').value,existingMovie=editingMovieId?movies.find(x=>x.id===editingMovieId):null;
+    if(!title||(!file&&!existingMovie)){errorNode.textContent='Le titre et le fichier média sont obligatoires.';return}
+    if(type==='movie'&&!posterFile&&!existingMovie?.poster_path){errorNode.textContent='Importe une miniature personnalisée avant de publier la vidéo.';return}
+    if(type==='movie'&&document.getElementById('publishNow').checked&&!previewFilePublic&&!existingMovie?.preview_asset_path){errorNode.textContent='Ajoute un fichier d’aperçu public séparé avant de publier. La vidéo complète restera privée.';return}
     if(posterFile&&posterFile.size>10*1024*1024){errorNode.textContent='La miniature doit peser 10 Mo maximum.';return}
     if(previewFilePublic&&(!previewFilePublic.type.startsWith('video/')||previewFilePublic.size>250*1024*1024)){errorNode.textContent='L’aperçu doit être une vidéo de 250 Mo maximum.';return}
     const max=2*1024*1024*1024;
-    if(file.size>max){errorNode.textContent='Le fichier dépasse la limite de 2 Go configurée.';return}
-    if(type==='movie'&&!file.type.startsWith('video/')){errorNode.textContent='Choisis un fichier vidéo.';return}
-    if(type==='track'&&!file.type.startsWith('audio/')){errorNode.textContent='Choisis un fichier audio.';return}
-    if(type==='movie'){
+    if(file&&file.size>max){errorNode.textContent='Le fichier dépasse la limite de 2 Go configurée.';return}
+    if(type==='movie'&&file&&!file.type.startsWith('video/')){errorNode.textContent='Choisis un fichier vidéo.';return}
+    if(type==='track'&&(!file||!file.type.startsWith('audio/'))){errorNode.textContent='Choisis un fichier audio.';return}
+    if(type==='movie'&&file){
       const start=Math.max(0,Number(document.getElementById('clipStart').value)||0),rawEnd=document.getElementById('clipEnd').value.trim(),end=rawEnd?Number(rawEnd):preview.duration;
       if(!Number.isFinite(preview.duration)){errorNode.textContent='Attends que l’aperçu vidéo soit chargé avant de publier.';return}
       if(start>=end||end>preview.duration){errorNode.textContent='Les points de découpe doivent être compris dans la durée de la vidéo.';return}
@@ -193,10 +193,10 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
     }
     const submit=document.getElementById('publishSubmit');submit.disabled=true;submit.textContent='Téléversement en cours…';
     try{
-      const id=crypto.randomUUID(),safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'),path=`${type==='movie'?'movies':'music'}/${id}/${safeName}`;
-      const upload=await supabase.storage.from(BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false,cacheControl:'3600'});
-      if(upload.error)throw upload.error;
-      let posterPath=null,previewPath=null;
+      const id=editingMovieId||crypto.randomUUID();
+      let path=existingMovie?.video_asset_path||null;
+      if(file){const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');path=`${type==='movie'?'movies':'music'}/${id}/${crypto.randomUUID()}-${safeName}`;const upload=await supabase.storage.from(BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false,cacheControl:'3600'});if(upload.error)throw upload.error;}
+      let posterPath=existingMovie?.poster_path||null,previewPath=existingMovie?.preview_asset_path||null;
       if(type==='movie'&&posterFile){
         const posterName=posterFile.name.replace(/[^a-zA-Z0-9._-]/g,'_'),posterStoragePath=`posters/${id}/${crypto.randomUUID()}-${posterName}`;
         const posterUpload=await supabase.storage.from('holyview-posters').upload(posterStoragePath,posterFile,{contentType:posterFile.type,upsert:false,cacheControl:'31536000'});
@@ -210,18 +210,18 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
         previewPath=previewStoragePath;
       }
       const published=document.getElementById('publishNow').checked,status=published?'published':'draft',download=document.getElementById('publishDownload').checked;
-      const base={title,slug:`${slugify(title)||type}-${id.slice(0,8)}`,status,published_at:published?new Date().toISOString():null,allow_offline_download:download};
+      const base={title,slug:existingMovie?.slug||`${slugify(title)||type}-${id.slice(0,8)}`,status,published_at:published?new Date().toISOString():null,allow_offline_download:download};
       if(type==='movie'){
-        const payload={...base,synopsis:document.getElementById('publishSynopsis').value.trim()||null,poster_path:posterPath,release_year:Number(document.getElementById('publishYear').value)||null,video_asset_path:path,preview_asset_path:previewPath,display_format:format,duration_seconds:Number.isFinite(preview.duration)?Math.round(preview.duration):null,preview_duration_seconds:30,is_featured:document.getElementById('publishFeatured').checked,clip_start_seconds:Number(document.getElementById('clipStart').value)||0,clip_end_seconds:document.getElementById('clipEnd').value.trim()?Number(document.getElementById('clipEnd').value):null,subtitles:window.hvPreparedSubtitles?[window.hvPreparedSubtitles]:[]};
-        const {error}=await supabase.from('movies').insert(payload);if(error)throw error;
+        const payload={...base,synopsis:document.getElementById('publishSynopsis').value.trim()||null,poster_path:posterPath,release_year:Number(document.getElementById('publishYear').value)||null,video_asset_path:path,preview_asset_path:previewPath,display_format:format,duration_seconds:file&&Number.isFinite(preview.duration)?Math.round(preview.duration):(existingMovie?.duration_seconds||null),preview_duration_seconds:30,is_featured:document.getElementById('publishFeatured').checked,clip_start_seconds:file?(Number(document.getElementById('clipStart').value)||0):(existingMovie?.clip_start_seconds||0),clip_end_seconds:file?(document.getElementById('clipEnd').value.trim()?Number(document.getElementById('clipEnd').value):null):(existingMovie?.clip_end_seconds??null),subtitles:window.hvPreparedSubtitles?[window.hvPreparedSubtitles]:(existingMovie?.subtitles||[])};
+        const result=existingMovie?await supabase.from('movies').update(payload).eq('id',id):await supabase.from('movies').insert(payload);if(result.error)throw result.error;
       }else{
         const artistName=document.getElementById('publishArtist').value.trim();
         let artist_id=null;
         if(artistName){const {data:artist,error:artistError}=await supabase.from('artists').insert({name:artistName,slug:`${slugify(artistName)||'artiste'}-${id.slice(0,8)}`}).select('id').single();if(artistError)throw artistError;artist_id=artist.id}
         const {error}=await supabase.from('music_tracks').insert({...base,audio_asset_path:path,artist_id});if(error)throw error;
       }
-      document.getElementById('publishForm').reset();document.getElementById('publishYear').value=new Date().getFullYear();window.hvPreparedSubtitles=null;document.getElementById('subtitleStatus').textContent='Aucun sous-titre ajouté.';if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}preview.removeAttribute('src');preview.load();preview.hidden=true;previewEmpty.hidden=false;document.getElementById('publishYear').value=new Date().getFullYear();document.getElementById('publishNow').checked=true;
-      toast('Contenu enregistré.');notice('Le média a été téléversé dans le stockage privé et enregistré dans le catalogue.','success');await refreshAll();showPane('content');
+      editingMovieId=null;document.getElementById('publishFile').required=true;document.getElementById('publishPosterFile').required=true;document.getElementById('publishPreviewFile').required=true;document.getElementById('publishSubmit').textContent='Téléverser et enregistrer ↗';document.getElementById('publishForm').reset();document.getElementById('publishYear').value=new Date().getFullYear();window.hvPreparedSubtitles=null;document.getElementById('subtitleStatus').textContent='Aucun sous-titre ajouté.';if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}preview.removeAttribute('src');preview.load();preview.hidden=true;previewEmpty.hidden=false;document.getElementById('publishYear').value=new Date().getFullYear();document.getElementById('publishNow').checked=true;
+      toast(existingMovie?'Vidéo mise à jour.':'Contenu enregistré.');notice(existingMovie?'Les informations, la miniature et/ou l’aperçu de la vidéo ont été mis à jour.':'Le média a été téléversé dans le stockage privé et enregistré dans le catalogue.','success');await refreshAll();showPane('content');
     }catch(error){console.error('HOLYVIEW publish',error);errorNode.textContent=error.message||'Impossible de publier ce média. Vérifie les droits administrateur et les règles de stockage.'}
     finally{submit.disabled=false;submit.textContent='Téléverser et enregistrer ↗'}
   }
@@ -231,6 +231,15 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
   document.querySelectorAll('[data-admin-tab]').forEach(b=>b.addEventListener('click',()=>showPane(b.dataset.adminTab)));
   document.getElementById('adminCommentsClose').addEventListener('click',()=>{document.getElementById('adminVideoComments').hidden=true});
   admin.addEventListener('click',async e=>{
+    const editMovieBtn=e.target.closest('[data-edit-movie]');
+    if(editMovieBtn){
+      const movie=movies.find(x=>x.id===editMovieBtn.dataset.editMovie);if(!movie)return;
+      editingMovieId=movie.id;showPane('publish');
+      document.getElementById('publishType').value='movie';document.getElementById('publishType').dispatchEvent(new Event('change'));
+      document.getElementById('publishTitle').value=movie.title||'';document.getElementById('publishSynopsis').value=movie.synopsis||'';document.getElementById('publishYear').value=movie.release_year||new Date().getFullYear();document.getElementById('publishFormat').value=movie.display_format||'video';document.getElementById('publishFeatured').checked=!!movie.is_featured;document.getElementById('publishDownload').checked=!!movie.allow_offline_download;document.getElementById('publishNow').checked=movie.status==='published';document.getElementById('clipStart').value=movie.clip_start_seconds||0;document.getElementById('clipEnd').value=movie.clip_end_seconds??'';
+      document.getElementById('publishFile').value='';document.getElementById('publishFile').required=false;document.getElementById('publishPosterFile').value='';document.getElementById('publishPosterFile').required=!movie.poster_path;document.getElementById('publishPreviewFile').value='';document.getElementById('publishPreviewFile').required=movie.status==='published'&&!movie.preview_asset_path;document.getElementById('publishSubmit').textContent='Enregistrer les modifications';
+      notice('Modification de « '+movie.title+' » : le fichier vidéo original est conservé si tu n’en sélectionnes pas un nouveau. Ajoute une miniature et un aperçu pour l’afficher aux visiteurs.','success');return;
+    }
     const commentsBtn=e.target.closest('[data-comments-id]');
     if(commentsBtn){
       const panel=document.getElementById('adminVideoComments'),list=document.getElementById('adminVideoCommentsList');

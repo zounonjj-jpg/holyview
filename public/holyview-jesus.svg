@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 560" role="img" aria-labelledby="title desc">
+<title id="title">Jésus, lumière du monde</title>
+<desc id="desc">Illustration cinématographique de Jésus en robe ivoire, entouré d'une croix lumineuse, d'une auréole dorée et de cristaux étincelants.</desc>
+<defs>
+ <radialGradient id="aura"><stop offset="0" stop-color="#fff9df" stop-opacity=".98"/><stop offset=".28" stop-color="#f6db95" stop-opacity=".58"/><stop offset=".66" stop-color="#dfb766" stop-opacity=".18"/><stop offset="1" stop-color="#dfb766" stop-opacity="0"/></radialGradient>
+ <linearGradient id="robe" x1=".1" y1="0" x2=".85" y2="1"><stop stop-color="#fffef7"/><stop offset=".48" stop-color="#eee4d0"/><stop offset="1" stop-color="#b8a17c"/></linearGradient>
+ <linearGradient id="manteau" x1="0" y1="0" x2="1" y2=".8"><stop stop-color="#9f783c"/><stop offset=".32" stop-color="#f5df9f"/><stop offset=".62" stop-color="#fff4cf"/><stop offset="1" stop-color="#a47e44"/></linearGradient>
+ <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#77503a"/><stop offset=".55" stop-color="#4b3026"/><stop offset="1" stop-color="#241a19"/></linearGradient>
+ <linearGradient id="crystal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffef4" stop-opacity=".9"/><stop offset="1" stop-color="#e0ba69" stop-opacity=".06"/></linearGradient>
+ <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="12"/></filter>
+ <filter id="crisp-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<g class="aura"><circle cx="280" cy="276" r="214" fill="url(#aura)"/><circle cx="280" cy="215" r="118" fill="#f8e8b9" opacity=".18" filter="url(#soft-glow)"/></g>
+<g class="rays" stroke="#fbe8ae" stroke-linecap="round" fill="none" opacity=".3">
+ <path d="M280 27V117M280 432V527M31 282H119M441 282H529M101 103L165 167M395 397L459 461M101 461L165 397M395 167L459 103" stroke-width="1.5"/>
+ <path d="M188 52L223 142M337 421L372 510M53 193L143 228M417 337L507 372M53 372L143 337M417 228L507 193M188 511L223 421M337 142L372 52" stroke-width="1"/>
+</g>
+<g class="crystal-frame" fill="url(#crystal)" stroke="#f5dfa2" stroke-opacity=".63">
+ <path d="M280 28L310 84L280 116L250 84Z"/>
+ <path d="M467 111L492 151L450 176L433 140Z"/>
+ <path d="M91 112L127 139L104 177L69 151Z"/>
+ <path d="M464 393L496 414L473 449L442 427Z"/>
+ <path d="M96 393L125 415L103 450L72 428Z"/>
+</g>
+<g class="cross" stroke="#fff2c5" stroke-linecap="round" filter="url(#crisp-glow)">
+ <path d="M280 87V233" stroke-width="8"/><path d="M231 143H329" stroke-width="8"/>
+</g>
+<circle class="halo halo-outer" cx="280" cy="178" r="92" fill="none" stroke="#f0cb7a" stroke-width="1.8" stroke-opacity=".72"/>
+<circle class="halo halo-inner" cx="280" cy="178" r="74" fill="none" stroke="#fff8de" stroke-width="2.3" stroke-opacity=".85"/>
+<circle cx="280" cy="178" r="60" fill="url(#aura)" opacity=".5"/>
+<g class="figure">
+ <ellipse cx="280" cy="444" rx="112" ry="16" fill="#e5c477" opacity=".18" filter="url(#soft-glow)"/>
+ <path d="M251 207C226 209 206 226 183 242L144 264Q130 269 137 281Q144 292 159 284L219 264L252 251Z" fill="url(#manteau)"/>
+ <path d="M309 207C334 209 354 226 377 242L416 264Q430 269 423 281Q416 292 401 284L341 264L308 251Z" fill="url(#manteau)"/>
+ <path d="M143 267Q136 273 145 280L158 278L166 269Z" fill="#c39158"/><path d="M417 267Q424 273 415 280L402 278L394 269Z" fill="#c39158"/>
+ <path d="M246 207Q226 250 235 300L209 424Q280 457 351 424L325 300Q334 250 314 207Z" fill="url(#robe)" stroke="#b99f6d" stroke-opacity=".65" stroke-width="1.7"/>
+ <path d="M250 211Q280 242 310 211L302 273L280 300L258 273Z" fill="#fffdf4"/>
+ <path d="M244 226Q219 267 226 310L213 415L242 431L265 289L263 242Z" fill="url(#manteau)"/>
+ <path d="M316 226Q341 267 334 310L347 415L318 431L295 289L297 242Z" fill="url(#manteau)" opacity=".9"/>
+ <path d="M276 248L284 248L294 421L280 431L266 421Z" fill="#c5a45c" opacity=".49"/>
+ <path d="M245 228Q280 254 315 228" fill="none" stroke="#a78349" stroke-width="3" stroke-linecap="round"/>
+ <path d="M241 145Q232 163 239 199Q244 216 258 225L302 225Q316 216 321 199Q328 163 319 145Q307 116 280 116Q253 116 241 145Z" fill="url(#hair)"/>
+ <ellipse cx="280" cy="169" rx="30" ry="37" fill="#c9956c"/>
+ <path d="M249 164Q247 134 272 127Q299 119 313 145L309 162L300 145L282 139L265 145Z" fill="url(#hair)"/>
+ <path d="M250 159Q245 192 263 210L252 216Q234 194 239 160Z" fill="url(#hair)"/>
+ <path d="M310 159Q315 192 297 210L308 216Q326 194 321 160Z" fill="url(#hair)"/>
+ <path d="M266 171Q270 169 274 171M286 171Q290 169 294 171" fill="none" stroke="#56392a" stroke-width="2" stroke-linecap="round"/>
+ <path d="M278 175L275 186L281 188M270 196Q280 201 290 196" fill="none" stroke="#8c5c45" stroke-width="1.8" stroke-linecap="round"/>
+ <path d="M264 202Q280 211 296 202" fill="none" stroke="#8d634b" stroke-width="4" stroke-linecap="round" opacity=".8"/>
+</g>
+<g class="diamonds" fill="#fff2bf" filter="url(#crisp-glow)">
+ <path d="M157 127L163 140L176 146L163 152L157 165L151 152L138 146L151 140Z"/>
+ <path d="M405 100L410 111L421 116L410 121L405 132L400 121L389 116L400 111Z"/>
+ <path d="M432 320L437 331L448 336L437 341L432 352L427 341L416 336L427 331Z"/>
+ <path d="M117 325L121 333L129 337L121 341L117 349L113 341L105 337L113 333Z"/>
+</g>
+<path d="M157 455Q280 480 403 455" fill="none" stroke="#efce83" stroke-width="2" stroke-opacity=".55"/>
+<style>
+.aura{transform-box:fill-box;transform-origin:center;animation:auraPulse 7s ease-in-out infinite}
+.rays{transform-box:fill-box;transform-origin:center;animation:raysTurn 72s linear infinite}
+.halo{transform-box:fill-box;transform-origin:center;animation:haloPulse 6s ease-in-out infinite}
+.halo-inner{animation-delay:.7s}
+.figure{transform-box:fill-box;transform-origin:center;animation:figureFloat 6.5s ease-in-out infinite}
+.diamonds{transform-box:fill-box;transform-origin:center;animation:diamondDrift 7s ease-in-out infinite}
+.crystal-frame{animation:crystalShine 5s ease-in-out infinite}
+@keyframes auraPulse{0%,100%{opacity:.65;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}}
+@keyframes raysTurn{to{transform:rotate(360deg)}}
+@keyframes haloPulse{0%,100%{opacity:.55;transform:scale(.97)}50%{opacity:1;transform:scale(1.04)}}
+@keyframes figureFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes diamondDrift{0%,100%{opacity:.62;transform:translateY(0) scale(.97)}50%{opacity:1;transform:translateY(-7px) scale(1.03)}}
+@keyframes crystalShine{0%,100%{opacity:.7}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</svg>

@@ -15,7 +15,7 @@ let movies=[], tracks=[], currentUser=null, authMode='login';
 const esc = (s='') => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('show'),3600)}
 function logo(){return '<a class="brand" href="#home" aria-label="HOLYVIEW accueil"><img src="/holyview-logo.svg" alt=""><span>HOLY<b>VIEW</b></span></a>'}
-function card(item,kind){const title=esc(item.title),img=esc(item.poster_path||item.image_path||'/holyview-jesus.svg');return '<article class="card" role="button" tabindex="0" data-id="'+esc(item.id)+'" data-kind="'+kind+'"><div class="poster"><img loading="lazy" src="'+img+'" alt="'+title+'" onerror="this.style.display=\'none\'"><span class="poster-label">'+esc(item.tag||(kind==='track'?'MUSIQUE':'FILM'))+'</span><span class="poster-play">▶</span></div><h3>'+title+'</h3><p>'+(kind==='track'?esc(item.artist_name||item.artists?.name||'Musique chrétienne'):esc(item.release_year||'Film chrétien'))+'</p></article>'}
+function card(item,kind){const title=esc(item.title),img=esc(item.poster_path||item.image_path||'/holyview-logo.svg');return '<article class="card" role="button" tabindex="0" data-id="'+esc(item.id)+'" data-kind="'+kind+'"><div class="poster"><img loading="lazy" src="'+img+'" alt="'+title+'" onerror="this.style.display=\'none\'"><span class="poster-label">'+esc(item.tag||(kind==='track'?'MUSIQUE':'FILM'))+'</span><span class="poster-play">▶</span></div><h3>'+title+'</h3><p>'+(kind==='track'?esc(item.artist_name||item.artists?.name||'Musique chrétienne'):esc(item.release_year||'Film chrétien'))+'</p></article>'}
 function render(){
  const q=($('searchInput')?.value||'').trim().toLocaleLowerCase('fr');
  const filteredMovies=movies.filter(x=>(x.title+' '+(x.synopsis||'')).toLocaleLowerCase('fr').includes(q));
@@ -92,7 +92,7 @@ function countrySelect(){return countryOptions.map(c=>'<option value="'+c.code+'
 async function renderApp(){
  $('app').innerHTML = `
  <header class="nav">${logo()}<nav class="links"><a class="active" href="#videos">Vidéos</a><a href="#shorts">Shorts</a><a id="musicNav" href="#music">Musiques</a></nav><div class="navright"><button class="iconbtn" id="searchToggle" aria-label="Rechercher">⌕</button><span class="userchip" id="userChip" hidden></span><button class="btn btn-glass" id="authOpen">Se connecter</button><button class="btn btn-green" id="signupOpen">S’inscrire</button></div></header>
- <main><section class="hero" id="home"><div class="hero-content"><div class="eyebrow"><span class="dot"></span> JÉSUS AU CŒUR DE HOLYVIEW</div><h1 id="heroTitle">Des histoires<br>qui célèbrent<br><span class="pink">JÉSUS.</span></h1><p id="heroDescription">Le cinéma chrétien, les récits bibliques et la musique qui élève l’âme. Une expérience inspirée par Jésus, la lumière du monde.</p><div class="hero-benefits" id="heroBenefits"><span>✦ Des histoires qui inspirent</span><span>♫ Louange & gospel</span><span>♡ Un espace pour ta famille</span></div><div class="meta"><strong>✦ SÉLECTION HOLYVIEW</strong><span>•</span><span>Foi & inspiration</span><span class="tag">FR</span><span class="tag">FAMILLE</span></div><div class="actions"><button class="btn btn-pink" id="explore">▶ Explorer le catalogue</button><button class="btn btn-green hero-join" id="heroJoinNow">✦ Créer mon espace gratuit</button><button class="btn btn-glass" id="mission">＋ Notre mission</button></div></div><div class="jesus-showcase" role="presentation"><div class="showcase-orbit orbit-one"></div><div class="showcase-orbit orbit-two"></div><span class="showcase-spark spark-one">✦</span><span class="showcase-spark spark-two">✧</span><span class="showcase-spark spark-three">✦</span><img class="jesus-art" src="/holyview-jesus.svg" alt="Illustration animée de Jésus, lumière du monde"><div class="jesus-caption"><span>LA FOI PREND VIE</span><strong>JÉSUS · LUMIÈRE DU MONDE</strong></div></div></section>
+ <main><section class="hero" id="home"><div class="hero-content"><div class="eyebrow"><span class="dot"></span> JÉSUS AU CŒUR DE HOLYVIEW</div><h1 id="heroTitle">Des histoires<br>qui célèbrent<br><span class="pink">JÉSUS.</span></h1><p id="heroDescription">Le cinéma chrétien, les récits bibliques et la musique qui élève l’âme. Une expérience inspirée par Jésus, la lumière du monde.</p><div class="hero-benefits" id="heroBenefits"><span>✦ Des histoires qui inspirent</span><span>♫ Louange & gospel</span><span>♡ Un espace pour ta famille</span></div><div class="meta"><strong>✦ SÉLECTION HOLYVIEW</strong><span>•</span><span>Foi & inspiration</span><span class="tag">FR</span><span class="tag">FAMILLE</span></div><div class="actions"><button class="btn btn-pink" id="explore">▶ Explorer le catalogue</button><button class="btn btn-green hero-join" id="heroJoinNow">✦ Créer mon espace gratuit</button><button class="btn btn-glass" id="mission">＋ Notre mission</button></div></div><div class="jesus-showcase wordmark-stage" role="img" aria-label="Le nom Jésus en lettres dorées animées"><div class="showcase-orbit orbit-one"></div><div class="showcase-orbit orbit-two"></div><span class="showcase-spark spark-one">✦</span><span class="showcase-spark spark-two">✧</span><span class="showcase-spark spark-three">✦</span><div class="jesus-wordmark" aria-hidden="true"><span class="jesus-wordmark-kicker">AU CŒUR DE LA FOI</span><span class="jesus-wordmark-title"><span>J</span><span>É</span><span>S</span><span>U</span><span>S</span></span><span class="jesus-wordmark-subtitle">LA FOI PREND VIE</span></div><div class="jesus-caption"><strong>JÉSUS · LUMIÈRE DU MONDE</strong></div></div></section>
  <div class="searchbar" id="searchWrap"><input id="searchInput" placeholder="Rechercher un film, un artiste, une musique…" aria-label="Recherche"></div>
  <section class="section" id="videos"><div class="section-head"><div><h2>Vidéos <span class="pink">✦</span></h2><div class="sub" id="videoSectionSubtitle">Films et vidéos chrétiens — découvre un aperçu.</div></div><button class="see" data-scroll="catalogue">Tout explorer ↗</button></div><div class="cards" id="videoCards"></div></section>
  <section class="section shorts-section" id="shorts"><div class="section-head"><div><h2>Shorts <span class="pink">✦</span></h2><div class="sub">Des formats courts chrétiens, séparés des vidéos classiques.</div></div><button class="see" data-scroll="catalogue">Tous les Shorts ↗</button></div><div class="cards shorts-cards" id="shortCards"></div></section>
@@ -126,23 +126,15 @@ function setupInstallPrompt(){
  const unsupportedBrowser=()=>/Firefox/i.test(navigator.userAgent)&&!appleMobile();
  if(standalone()){banner.hidden=true;return}
  banner.hidden=false;
- button.disabled=!appleMobile()&&!safariDesktop()&&!unsupportedBrowser()&&!deferredInstallPrompt;
- button.textContent=button.disabled?'Préparation…':'Installer';
- button.setAttribute('aria-busy',String(button.disabled));
- help.textContent=appleMobile()
-   ?'Sur iPhone et iPad, Apple ne permet pas à un site d’ouvrir directement la fenêtre d’installation. Le bouton te montrera la seule méthode disponible.'
-   :safariDesktop()
-     ?'Sur Safari pour Mac, l’installation se lance depuis le menu du navigateur ; Safari ne fournit pas de fenêtre déclenchable par le site.'
-     :unsupportedBrowser()
-       ?'Firefox sur ordinateur ne propose pas l’installation PWA intégrée. Ouvre HOLYVIEW dans une version récente de Chrome ou Edge pour afficher la fenêtre native.'
-       :'Préparation de l’installation native. Le bouton s’activera dès que le navigateur autorisera l’ouverture directe de sa fenêtre.';
+ button.disabled=false;
+ button.textContent='Installer';
+ help.textContent='Installe HOLYVIEW sur ton appareil.';
  window.addEventListener('beforeinstallprompt',e=>{
    e.preventDefault();
    deferredInstallPrompt=e;
    button.disabled=false;
-   button.setAttribute('aria-busy','false');
-   button.textContent='Installer maintenant';
-   help.textContent='HOLYVIEW est prête à être installée. Appuie sur Installer maintenant pour ouvrir la fenêtre native du navigateur.';
+   button.textContent='Installer';
+   help.textContent='HOLYVIEW est prête à être installée.';
    banner.hidden=false;
  });
  window.addEventListener('appinstalled',()=>{
@@ -152,48 +144,42 @@ function setupInstallPrompt(){
  });
  button.onclick=async()=>{
    if(standalone()){banner.hidden=true;return}
-   if(!deferredInstallPrompt){
-     if(appleMobile()){
-       help.textContent='Sur iPhone ou iPad : ouvre HOLYVIEW dans Safari, appuie sur Partager, puis choisis « Sur l’écran d’accueil ». Il n’existe pas d’API permettant à HOLYVIEW de lancer cette action automatiquement.';
-       button.textContent='Voir la méthode iPhone / iPad';
-       return;
-     }
-     if(safariDesktop()){
-       help.textContent='Sur Mac : dans Safari, utilise le menu Fichier puis « Ajouter au Dock… ». Le navigateur ne permet pas au site de déclencher directement cette commande.';
-       button.textContent='Voir la méthode Safari';
-       return;
-     }
-     if(unsupportedBrowser()){
-       help.textContent='Ce navigateur ne propose pas l’installation directe de PWA. Pour installer HOLYVIEW comme application, ouvre ce site dans une version récente de Chrome ou Edge.';
-       button.textContent='Navigateur non compatible';
-       button.disabled=true;
-       return;
-     }
-     help.textContent='La demande d’installation native n’est pas encore disponible. Garde cette page ouverte : le bouton s’activera automatiquement lorsque le navigateur aura confirmé que HOLYVIEW peut être installée.';
+   if(deferredInstallPrompt){
+     const installEvent=deferredInstallPrompt;
+     deferredInstallPrompt=null;
      button.disabled=true;
-     button.textContent='Préparation…';
+     button.textContent='Installation…';
+     try{
+       const choice=await installEvent.prompt();
+       if(choice?.outcome==='accepted'){
+         banner.hidden=true;
+         toast('Demande d’installation acceptée.');
+       }else{
+         button.disabled=false;
+         button.textContent='Installer';
+         help.textContent='Installation non confirmée. Tu peux réessayer lorsque le navigateur le permet.';
+       }
+     }catch(error){
+       button.disabled=false;
+       button.textContent='Installer';
+       help.textContent='Le navigateur n’a pas pu ouvrir la fenêtre. Actualise la page et réessaie.';
+       console.warn('HOLYVIEW install prompt',error);
+     }
      return;
    }
-   const installEvent=deferredInstallPrompt;
-   deferredInstallPrompt=null;
-   button.disabled=true;
-   button.textContent='Ouverture de l’installation…';
-   try{
-     const choice=await installEvent.prompt();
-     if(choice?.outcome==='accepted'){
-       banner.hidden=true;
-       toast('Demande d’installation acceptée.');
-     }else{
-       button.disabled=true;
-       button.textContent='Installer';
-       help.textContent='La demande a été fermée. Le navigateur décidera quand une nouvelle demande pourra être présentée.';
-     }
-   }catch(error){
-     button.disabled=false;
-     button.textContent='Réessayer';
-     help.textContent='Le navigateur n’a pas pu ouvrir la fenêtre native. Actualise la page puis réessaie.';
-     console.warn('HOLYVIEW install prompt',error);
+   if(appleMobile()){
+     help.textContent='Sur iPhone ou iPad, ouvre HOLYVIEW dans Safari, appuie sur Partager, puis « Sur l’écran d’accueil ». Apple ne permet pas à un site de lancer cette commande automatiquement.';
+     return;
    }
+   if(safariDesktop()){
+     help.textContent='Sur Safari pour Mac, utilise le menu Fichier puis « Ajouter au Dock… ». Safari ne permet pas au site de lancer cette commande automatiquement.';
+     return;
+   }
+   if(unsupportedBrowser()){
+     help.textContent='Ce navigateur ne propose pas l’installation directe de PWA. Ouvre HOLYVIEW dans une version récente de Chrome ou Edge.';
+     return;
+   }
+   help.textContent='Le navigateur n’a pas encore ouvert la demande d’installation. Réessaie dans un instant ou utilise le menu Installer l’application du navigateur si disponible.';
  };
  $('installDismiss').onclick=()=>{banner.hidden=true};
 }

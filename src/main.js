@@ -26,7 +26,7 @@ function render(){
 }
 async function loadCatalog(){
  const [m,t]=await Promise.all([
-  supabase.from('movies').select('id,title,slug,synopsis,poster_path,duration_seconds,release_year,status,is_featured,display_format,preview_duration_seconds,clip_start_seconds,clip_end_seconds,subtitles').eq('status','published').order('is_featured',{ascending:false}).limit(100),
+  supabase.from('movies').select('id,title,slug,synopsis,poster_path,duration_seconds,release_year,status,is_featured,display_format,preview_duration_seconds,clip_start_seconds,clip_end_seconds,subtitles').eq('status','published').not('poster_path','is',null).not('preview_asset_path','is',null).order('is_featured',{ascending:false}).limit(100),
   supabase.from('music_tracks').select('id,title,duration_seconds,artist_id,artists(name,image_path)').eq('status','published').limit(30)
  ]);
  const {data:stats}=await supabase.from('movie_stats').select('movie_id,view_count,like_count,comment_count,share_count');

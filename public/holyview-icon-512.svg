@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" role="img" aria-label="HOLYVIEW">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0c3"/><stop offset="1" stop-color="#d7ae5f"/></linearGradient><linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffaf0"/><stop offset="1" stop-color="#e1c06f"/></linearGradient></defs>
+<rect width="256" height="256" fill="#0b1020"/><rect x="9" y="9" width="238" height="238" rx="35" fill="none" stroke="#d9b96b" stroke-opacity=".5" stroke-width="2"/>
+<circle cx="128" cy="128" r="83" fill="none" stroke="#e1c06f" stroke-opacity=".3" stroke-width="1.5"/><path d="M72 66h22v53h68V66h22v124h-22v-51H94v51H72z" fill="url(#h)"/>
+<path d="M190 43l7 16 16 7-16 7-7 16-7-16-16-7 16-7z" fill="url(#g)"/><path d="M191 147v45M169 169h45" stroke="#e5c778" stroke-linecap="round" stroke-width="7"/><circle cx="191" cy="169" r="28" fill="none" stroke="#e5c778" stroke-opacity=".58" stroke-width="2"/></svg>

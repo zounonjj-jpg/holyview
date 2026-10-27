@@ -40,7 +40,7 @@ function render(){
 }
 async function loadCatalog(){
  const [m,t]=await Promise.all([
-  supabase.from('movies').select('id,title,slug,synopsis,poster_path,duration_seconds,release_year,status,is_featured').eq('status','published').order('is_featured',{ascending:false}).limit(30),
+  supabase.from('movies').select('id,title,slug,synopsis,poster_path,duration_seconds,release_year,status,is_featured,clip_start_seconds,clip_end_seconds,subtitles').eq('status','published').order('is_featured',{ascending:false}).limit(30),
   supabase.from('music_tracks').select('id,title,duration_seconds,artist_id,artists(name,image_path)').eq('status','published').limit(30)
  ]);
  movies=m.data?.length?m.data.map(x=>({...x,tag:x.is_featured?'À LA UNE':'FILM'})):demoMovies;

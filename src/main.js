@@ -126,13 +126,15 @@ function setupInstallPrompt(){
  const unsupportedBrowser=()=>/Firefox/i.test(navigator.userAgent)&&!appleMobile();
  if(standalone()){banner.hidden=true;return}
  banner.hidden=false;
- button.disabled=!appleMobile()&&!safariDesktop()&&!deferredInstallPrompt;
+ button.disabled=!appleMobile()&&!safariDesktop()&&!unsupportedBrowser()&&!deferredInstallPrompt;
  button.textContent='Installer';
  help.textContent=appleMobile()
    ?'Sur iPhone et iPad, Apple ne permet pas à un site d’ouvrir directement la fenêtre d’installation. Le bouton te montrera la seule méthode disponible.'
    :safariDesktop()
      ?'Sur Safari pour Mac, l’installation se lance depuis le menu du navigateur ; Safari ne fournit pas de fenêtre déclenchable par le site.'
-     :'Préparation de l’installation native. Le bouton s’activera dès que le navigateur autorisera l’ouverture directe de sa fenêtre.';
+     :unsupportedBrowser()
+       ?'Firefox sur ordinateur ne propose pas l’installation PWA intégrée. Ouvre HOLYVIEW dans une version récente de Chrome ou Edge pour afficher la fenêtre native.'
+       :'Préparation de l’installation native. Le bouton s’activera dès que le navigateur autorisera l’ouverture directe de sa fenêtre.';
  window.addEventListener('beforeinstallprompt',e=>{
    e.preventDefault();
    deferredInstallPrompt=e;
@@ -175,8 +177,7 @@ function setupInstallPrompt(){
    button.disabled=true;
    button.textContent='Ouverture de l’installation…';
    try{
-     await installEvent.prompt();
-     const choice=await installEvent.userChoice;
+     const choice=await installEvent.prompt();
      if(choice?.outcome==='accepted'){
        banner.hidden=true;
        toast('Demande d’installation acceptée.');

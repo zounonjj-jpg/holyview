@@ -39,3 +39,6 @@
 .admin-video-comment strong{display:block;font-size:11px;line-height:1.6;color:#e8e8ef;white-space:pre-wrap;overflow-wrap:anywhere}
 .admin-video-comment small{display:block;font-size:9px;color:#9999a7;margin-top:6px}
 .admin-video-comments[hidden]{display:none!important}
+
+.poster-upload-preview{display:block;max-width:260px;width:100%;max-height:220px;object-fit:contain;object-position:left center;background:#08090d;border:1px solid #343540;border-radius:9px;margin-top:5px}
+.poster-upload-preview[hidden]{display:none!important}

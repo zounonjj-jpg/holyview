@@ -46,7 +46,7 @@ async function loadCatalog(){
  render();
 }
 function countrySelect(){return countryOptions.map(c=>'<option value="'+c.code+'">'+esc(c.name)+' ('+c.dial+')</option>').join('')}
-function renderApp(){
+async function renderApp(){
  $('app').innerHTML = `
  <header class="nav">${logo()}<nav class="links"><a class="active" href="#home">Accueil</a><a href="#films">Films</a><a href="#music">Musiques</a><a href="#categories">Catégories</a></nav><div class="navright"><button class="iconbtn" id="searchToggle" aria-label="Rechercher">⌕</button><span class="userchip" id="userChip" hidden></span><button class="btn btn-pink" id="authOpen">Se connecter</button></div></header>
  <main><section class="hero" id="home"><div class="hero-content"><div class="eyebrow"><span class="dot"></span> LE STREAMING QUI INSPIRE</div><h1>Des histoires<br>qui nourrissent<br><span class="pink">la foi.</span></h1><p>Films chrétiens, récits bibliques et musique qui élève l’âme. Trouve l’inspiration pour chaque saison de ta vie.</p><div class="meta"><strong>✦ SÉLECTION HOLYVIEW</strong><span>•</span><span>Foi & inspiration</span><span class="tag">FR</span><span class="tag">FAMILLE</span></div><div class="actions"><button class="btn btn-pink" id="explore">▶ Explorer le catalogue</button><button class="btn btn-glass" id="mission">＋ Notre mission</button></div></div></section>

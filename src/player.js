@@ -12,7 +12,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     </div>`);
   const modal=document.getElementById('hvPlayerModal'),video=document.getElementById('hvVideo'),audio=document.getElementById('hvAudio');
   const title=document.getElementById('hvPlayerTitle'),subtitle=document.getElementById('hvPlayerSubtitle'),message=document.getElementById('hvPlayerMessage');
-  let sessionId=null, heartbeat=null, heartbeatTarget=null, opening=false, activeClipStart=0, activeClipEnd=null, subtitleUrl=null;
+  let sessionId=null, heartbeat=null, heartbeatTarget=null, opening=false, activeClipStart=0, activeClipEnd=null, subtitleUrl=null, activeMovieId=null, viewLogged=false;
   const clearHeartbeat=()=>{if(heartbeat){clearInterval(heartbeat);heartbeat=null}heartbeatTarget=null;};
   const sendHeartbeat=async()=>{
     if(!sessionId)return;
@@ -63,7 +63,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     if(opening)return;
     const user=getUser();
     if(!user){openAuth('login');toast('Connecte-toi pour accéder à ce média.');return}
-    opening=true;message.textContent='Vérification de tes droits de lecture…';message.className='hv-player-message';modal.hidden=false;
+    opening=true;activeMovieId=detail.kind==='movie'?detail.item.id:null;viewLogged=false;message.textContent='Vérification de tes droits de lecture…';message.className='hv-player-message';modal.hidden=false;
     title.textContent=detail.item.title||'HOLYVIEW';subtitle.textContent=detail.kind==='movie'?(detail.item.display_format==='short'?'Short · lecture sécurisée · cadrage 9:16':'Vidéo · lecture sécurisée · cadrage préservé'):'Musique · lecture sécurisée';video.classList.toggle('hv-short',detail.kind==='movie'&&detail.item.display_format==='short');
     try{
       await stopSession();
@@ -96,7 +96,7 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
   [video,audio].forEach(target=>{
     target.addEventListener('timeupdate',()=>{if(target===video&&activeClipEnd!==null&&Number.isFinite(activeClipEnd)&&target.currentTime>=activeClipEnd){target.pause();target.currentTime=activeClipStart;message.textContent='Fin de l’extrait.'}});
-    target.addEventListener('playing',()=>{if(sessionId)startHeartbeat(target)});
+    target.addEventListener('playing',()=>{if(sessionId)startHeartbeat(target);if(target===video&&activeMovieId&&!viewLogged){const user=getUser();if(user){viewLogged=true;void supabase.from('video_views').insert({movie_id:activeMovieId,user_id:user.id,view_date:new Date().toISOString().slice(0,10)}).then(({error})=>{if(error&&error.code!=='23505')console.warn('HOLYVIEW view tracking',error)})}}});
     target.addEventListener('pause',()=>{if(heartbeat){clearHeartbeat();void sendHeartbeat()}});
     target.addEventListener('ended',()=>{void stopSession()});
   });

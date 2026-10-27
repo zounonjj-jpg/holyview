@@ -12,8 +12,33 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     </div>`);
   const modal=document.getElementById('hvPlayerModal'),video=document.getElementById('hvVideo'),audio=document.getElementById('hvAudio');
   const title=document.getElementById('hvPlayerTitle'),subtitle=document.getElementById('hvPlayerSubtitle'),message=document.getElementById('hvPlayerMessage');
-  let sessionId=null, heartbeat=null, opening=false;
-  const clearHeartbeat=()=>{if(heartbeat){clearInterval(heartbeat);heartbeat=null}};
+  let sessionId=null, heartbeat=null, heartbeatTarget=null, opening=false;
+  const clearHeartbeat=()=>{if(heartbeat){clearInterval(heartbeat);heartbeat=null}heartbeatTarget=null;};
+  const sendHeartbeat=async()=>{
+    if(!sessionId)return;
+    try{
+      const state=await invoke({action:'heartbeat',sessionId});
+      if(state.stopped){
+        clearHeartbeat();
+        if(heartbeatTarget)heartbeatTarget.pause();
+        message.textContent=state.error||'Accès interrompu.';
+        message.className='hv-player-message error';
+        return;
+      }
+      if(state.trialRemainingSeconds!==null&&state.trialRemainingSeconds!==undefined){
+        message.textContent=`Essai gratuit : environ ${Math.floor(state.trialRemainingSeconds/3600)} h ${Math.floor((state.trialRemainingSeconds%3600)/60)} min restantes.`;
+      }
+    }catch(error){
+      clearHeartbeat();
+      if(heartbeatTarget)heartbeatTarget.pause();
+      message.textContent=error.message||'La vérification de la session a échoué.';
+      message.className='hv-player-message error';
+    }
+  };
+  const startHeartbeat=target=>{
+    heartbeatTarget=target;
+    if(!heartbeat)heartbeat=setInterval(()=>{void sendHeartbeat()},30000);
+  };
   const invoke=async body=>{
     const result=await supabase.functions.invoke('holyview-playback',{body});
     if(result.error) {
@@ -48,17 +73,6 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
       const remain=data.trialRemainingSeconds;
       message.textContent=remain===null?'Accès autorisé · '+String(data.tier||'').toUpperCase():`Essai gratuit : environ ${Math.floor(remain/3600)} h ${Math.floor((remain%3600)/60)} min restantes.`;
       try{await target.play()}catch{message.textContent+=' Appuie sur Lecture pour démarrer.'}
-      clearHeartbeat();
-      heartbeat=setInterval(async()=>{
-        if(!sessionId)return;
-        try{
-          const state=await invoke({action:'heartbeat',sessionId});
-          if(state.stopped){target.pause();clearHeartbeat();message.textContent=state.error||'Accès interrompu.';message.className='hv-player-message error';return}
-          if(state.trialRemainingSeconds!==null&&state.trialRemainingSeconds!==undefined){
-            message.textContent=`Essai gratuit : environ ${Math.floor(state.trialRemainingSeconds/3600)} h ${Math.floor((state.trialRemainingSeconds%3600)/60)} min restantes.`;
-          }
-        }catch(error){target.pause();clearHeartbeat();message.textContent=error.message||'La vérification de la session a échoué.';message.className='hv-player-message error'}
-      },30000);
     }catch(error){
       message.textContent=error.message||'Ce média ne peut pas être lu actuellement.';
       message.className='hv-player-message error';
@@ -68,6 +82,10 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
   document.getElementById('hvPlayerClose').addEventListener('click',close);
   modal.addEventListener('click',e=>{if(e.target===modal)close()});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
-  video.addEventListener('ended',()=>{void stopSession()});audio.addEventListener('ended',()=>{void stopSession()});
+  [video,audio].forEach(target=>{
+    target.addEventListener('playing',()=>{if(sessionId)startHeartbeat(target)});
+    target.addEventListener('pause',()=>{if(heartbeat){clearHeartbeat();void sendHeartbeat()}});
+    target.addEventListener('ended',()=>{void stopSession()});
+  });
   window.addEventListener('holyview:play',e=>{void play(e.detail)});
 }

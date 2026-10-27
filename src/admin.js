@@ -27,7 +27,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
   admin.className = 'admin-dashboard';
   admin.hidden = true;
   admin.innerHTML = `
-    <div class="admin-top"><div><div class="admin-eyebrow">HOLYVIEW · CENTRE DE CONTRÔLE</div><h1>Tableau de bord</h1><p>La plateforme, ses membres et ses contenus en un seul endroit.</p></div><button class="btn btn-glass" id="adminRefresh">↻ Actualiser</button></div>
+    <div class="admin-top"><div><div class="admin-eyebrow">HOLYVIEW · CENTRE DE CONTRÔLE</div><h1>Tableau de bord</h1><p>La plateforme, ses membres et ses contenus en un seul endroit.</p></div><span class="admin-live-status" id="adminLiveStatus">Données en direct</span></div>
     <div class="admin-tabs" role="tablist"><button class="active" data-admin-tab="overview">Vue générale</button><button data-admin-tab="users">Utilisateurs</button><button data-admin-tab="content">Catalogue</button><button data-admin-tab="publish">Publier un média</button></div>
     <div id="adminNotice" class="admin-notice" role="status"></div>
     <section class="admin-pane" id="adminPane-overview">
@@ -46,6 +46,19 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
         <label id="publishArtistWrap" hidden>Nom de l’artiste<input id="publishArtist" maxlength="160" placeholder="Nom de l’artiste ou du groupe"></label>
         <div class="admin-two-fields"><label>Année de sortie<input id="publishYear" type="number" min="1900" max="2100" value="2026"></label><label>Affiche (URL d’image)<input id="publishPoster" type="url" placeholder="https://…"></label></div>
         <label>Fichier média (vidéo ou audio)<input id="publishFile" type="file" accept="video/mp4,video/webm,audio/mpeg,audio/mp4,audio/aac,audio/ogg" required><small>Stockage privé. Taille maximale configurée : 2 Go. Pour les gros fichiers, un flux d’envoi reprenable sera nécessaire.</small></label>
+        <section id="videoEditor" class="video-editor">
+          <div class="video-editor-head"><div><strong>Aperçu & réglages vidéo</strong><small>Vérifie la vidéo avant de l’enregistrer.</small></div><span class="editor-badge">PRÉVISUALISATION</span></div>
+          <video id="publishPreview" controls playsinline preload="metadata" hidden></video>
+          <div id="previewEmpty" class="preview-empty">Choisis un fichier vidéo pour afficher son aperçu ici.</div>
+          <div class="admin-two-fields">
+            <label>Début (secondes)<input id="clipStart" type="number" min="0" step="0.1" value="0"></label>
+            <label>Fin (secondes)<input id="clipEnd" type="number" min="0" step="0.1" placeholder="Fin du fichier"></label>
+          </div>
+          <div class="editor-actions"><button type="button" class="small-action" id="previewClip">▶ Prévisualiser l’extrait</button><button type="button" class="small-action" id="resetClip">Réinitialiser les points</button></div>
+          <small class="editor-help">Les points de début et de fin définissent l’extrait diffusé sur HOLYVIEW. Le fichier source original reste conservé : cette version ne réencode pas le fichier.</small>
+          <label>Sous-titres (facultatif)<input id="publishSubtitles" type="file" accept=".vtt,.srt,text/vtt,application/x-subrip"><small>Importe un fichier .VTT ou .SRT. Les sous-titres seront convertis pour l’aperçu et enregistrés avec la fiche vidéo.</small></label>
+          <div id="subtitleStatus" class="editor-help" aria-live="polite">Aucun sous-titre ajouté.</div>
+        </section>
         <label class="admin-check"><input id="publishFeatured" type="checkbox"> Mettre ce contenu à la une</label>
         <label class="admin-check"><input id="publishDownload" type="checkbox"> Autoriser le téléchargement hors ligne pour ELITE (à activer uniquement avec les droits nécessaires)</label>
         <label class="admin-check"><input id="publishNow" type="checkbox" checked> Publier dès l’enregistrement</label>
@@ -53,16 +66,16 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
       </form></article>
       <article class="admin-panel admin-guidance"><div class="admin-guidance-icon">✦</div><h2>Publication responsable</h2><p>Avant de publier, vérifie les droits de diffusion, la licence musicale, l’autorisation des ayants droit et l’âge recommandé.</p><ul><li>Les fichiers sont stockés dans un bucket privé.</li><li>Les visiteurs ne reçoivent pas de lien public permanent.</li><li>Le statut « publié » rend la fiche visible au catalogue.</li><li>La lecture protégée doit être autorisée par le serveur.</li></ul><div class="admin-security-note">La formule ELITE ne rend pas automatiquement un média téléchargeable : la case dédiée doit être cochée par l’administrateur.</div></article></div></section>
   `;
-  app.insertBefore(admin, document.querySelector('.footer'));
+  const navRefresh=document.createElement('button'); navRefresh.id='adminRefreshNav'; navRefresh.className='btn btn-glass admin-refresh-nav'; navRefresh.textContent='↻ Actualiser'; navRefresh.hidden=true; navRight.insertBefore(navRefresh, document.getElementById('authOpen'));\n  app.insertBefore(admin, document.querySelector('.footer'));
   let isAdmin = false;
   let users = [], subscriptions = [], payments = [], movies = [], tracks = [], contentFilter = 'all';
 
   const notice = (message, type='info') => { const node=document.getElementById('adminNotice'); node.textContent=message; node.className='admin-notice '+type; node.hidden=!message; };
-  const showHome = () => { admin.hidden=true; homeNodes().forEach(node=>{if(node)node.hidden=false}); openBtn.classList.remove('selected'); window.scrollTo({top:0,behavior:'smooth'}); };
+  const showHome = () => { admin.hidden=true; navRefresh.hidden=true; homeNodes().forEach(node=>{if(node)node.hidden=false}); openBtn.classList.remove('selected'); window.scrollTo({top:0,behavior:'smooth'}); };
   const showAdmin = async () => {
     if (!isAdmin) { toast('Cette zone est réservée aux administrateurs autorisés.'); return; }
     homeNodes().forEach(node=>{if(node)node.hidden=true});
-    admin.hidden=false; openBtn.classList.add('selected');
+    admin.hidden=false; openBtn.classList.add('selected'); navRefresh.hidden=false;
     document.querySelectorAll('[data-admin-tab]').forEach(b=>b.classList.toggle('active',b.dataset.adminTab==='overview'));
     showPane('overview');
     window.scrollTo({top:0,behavior:'smooth'});
@@ -91,7 +104,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
         fetchAll('profiles','id,email,full_name,display_name,country_code,phone_number,created_at'),
         fetchAll('subscriptions','id,user_id,tier,status,starts_at,ends_at,created_at'),
         fetchAll('payments','id,user_id,amount,currency,status,created_at'),
-        fetchAll('movies','id,title,slug,status,is_featured,allow_offline_download,poster_path,created_at,video_asset_path'),
+        fetchAll('movies','id,title,slug,status,is_featured,allow_offline_download,poster_path,created_at,video_asset_path,clip_start_seconds,clip_end_seconds,subtitles'),
         fetchAll('music_tracks','id,title,status,allow_offline_download,audio_asset_path,created_at')
       ]);
       users=u; subscriptions=s; payments=p; movies=m; tracks=t;
@@ -172,7 +185,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
       const published=document.getElementById('publishNow').checked,status=published?'published':'draft',download=document.getElementById('publishDownload').checked;
       const base={title,slug:`${slugify(title)||type}-${id.slice(0,8)}`,status,published_at:published?new Date().toISOString():null,allow_offline_download:download};
       if(type==='movie'){
-        const payload={...base,synopsis:document.getElementById('publishSynopsis').value.trim()||null,poster_path:document.getElementById('publishPoster').value.trim()||null,release_year:Number(document.getElementById('publishYear').value)||null,video_asset_path:path,is_featured:document.getElementById('publishFeatured').checked};
+        const payload={...base,synopsis:document.getElementById('publishSynopsis').value.trim()||null,poster_path:document.getElementById('publishPoster').value.trim()||null,release_year:Number(document.getElementById('publishYear').value)||null,video_asset_path:path,is_featured:document.getElementById('publishFeatured').checked,clip_start_seconds:Number(document.getElementById('clipStart').value)||0,clip_end_seconds:document.getElementById('clipEnd').value.trim()?Number(document.getElementById('clipEnd').value):null,subtitles:window.hvPreparedSubtitles?[window.hvPreparedSubtitles]:[]};
         const {error}=await supabase.from('movies').insert(payload);if(error)throw error;
       }else{
         const artistName=document.getElementById('publishArtist').value.trim();
@@ -194,12 +207,12 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
     const statusBtn=e.target.closest('[data-status-id]');if(statusBtn){const kind=statusBtn.dataset.statusKind,id=statusBtn.dataset.statusId,next=statusBtn.dataset.nextStatus;statusBtn.disabled=true;try{const table=kind==='movie'?'movies':'music_tracks';const {error}=await supabase.from(table).update({status:next,published_at:next==='published'?new Date().toISOString():null}).eq('id',id);if(error)throw error;toast(next==='published'?'Contenu publié.':'Contenu dépublié.');await refreshAll()}catch(error){notice(error.message||'Modification impossible.','error')}return}
     const dlBtn=e.target.closest('[data-download-id]');if(dlBtn){const table=dlBtn.dataset.downloadKind==='movie'?'movies':'music_tracks';const {error}=await supabase.from(table).update({allow_offline_download:dlBtn.dataset.nextDownload==='true'}).eq('id',dlBtn.dataset.downloadId);if(error)notice(error.message||'Modification impossible.','error');else{toast('Autorisation ELITE mise à jour.');await refreshAll()}}
   });
-  document.getElementById('adminRefresh').addEventListener('click',refreshAll);
+  navRefresh.addEventListener('click',async()=>{if(admin.hidden){await showAdmin()}else{await refreshAll()}});
   document.getElementById('revenuePeriod').addEventListener('change',renderRevenue);
   document.getElementById('userSearch').addEventListener('input',renderUsers);
   document.querySelectorAll('[data-content-filter]').forEach(b=>b.addEventListener('click',()=>{contentFilter=b.dataset.contentFilter;document.querySelectorAll('[data-content-filter]').forEach(x=>x.classList.toggle('active',x===b));renderContent()}));
   document.getElementById('publishType').addEventListener('change',e=>{const track=e.target.value==='track';document.getElementById('publishSynopsisWrap').hidden=track;document.getElementById('publishArtistWrap').hidden=!track;document.getElementById('publishFile').accept=track?'audio/mpeg,audio/mp4,audio/aac,audio/ogg':'video/mp4,video/webm';document.getElementById('publishFile').value=''});
-  document.getElementById('publishForm').addEventListener('submit',publishContent);
+  document.getElementById('publishForm').addEventListener('submit',publishContent);\n  const preview=document.getElementById('publishPreview'), previewFile=document.getElementById('publishFile'), previewEmpty=document.getElementById('previewEmpty'); let previewUrl=null, subtitleUrl=null;\n  previewFile.addEventListener('change',()=>{const file=previewFile.files?.[0];if(!file||!file.type.startsWith('video/')){preview.hidden=true;previewEmpty.hidden=false;return}if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=URL.createObjectURL(file);preview.src=previewUrl;preview.hidden=false;previewEmpty.hidden=true;document.getElementById('clipStart').value='0';document.getElementById('clipEnd').value='';});\n  preview.addEventListener('loadedmetadata',()=>{const end=document.getElementById('clipEnd');if(!end.value)end.placeholder='Durée : '+preview.duration.toFixed(1)+' s';});\n  document.getElementById('previewClip').addEventListener('click',async()=>{const start=Math.max(0,Number(document.getElementById('clipStart').value)||0),rawEnd=document.getElementById('clipEnd').value,end=rawEnd?Number(rawEnd):preview.duration;if(!preview.src||!Number.isFinite(preview.duration)){notice('Choisis d’abord une vidéo valide.','error');return}if(start>=end||end>preview.duration){notice('Vérifie les points de début et de fin : ils doivent être compris dans la durée de la vidéo.','error');return}preview.currentTime=start;try{await preview.play()}catch{}preview.dataset.clipEnd=String(end);});\n  preview.addEventListener('timeupdate',()=>{const end=Number(preview.dataset.clipEnd);if(end>0&&preview.currentTime>=end){preview.pause();preview.currentTime=Math.max(0,(Number(document.getElementById('clipStart').value)||0));}});\n  document.getElementById('resetClip').addEventListener('click',()=>{document.getElementById('clipStart').value='0';document.getElementById('clipEnd').value='';delete preview.dataset.clipEnd;if(preview.src)preview.currentTime=0;});\n  document.getElementById('publishSubtitles').addEventListener('change',async e=>{const file=e.target.files?.[0];window.hvPreparedSubtitles=null;if(subtitleUrl){URL.revokeObjectURL(subtitleUrl);subtitleUrl=null}if(!file){document.getElementById('subtitleStatus').textContent='Aucun sous-titre ajouté.';return}try{let content=await file.text();if(file.name.toLowerCase().endsWith('.srt'))content='WEBVTT\\n\\n'+content.replace(/\\r/g,'').replace(/^(\\d+)\\n/gm,'').replace(/(\\d{2}:\\d{2}:\\d{2}),(\\d{3})/g,'$1.$2');else if(!content.trimStart().startsWith('WEBVTT'))content='WEBVTT\\n\\n'+content;window.hvPreparedSubtitles={language:'fr',label:'Français',vtt:content};subtitleUrl=URL.createObjectURL(new Blob([content],{type:'text/vtt'}));const old=preview.querySelector('track');if(old)old.remove();const track=document.createElement('track');track.kind='subtitles';track.label='Français';track.srclang='fr';track.src=subtitleUrl;track.default=true;preview.append(track);track.track.mode='showing';document.getElementById('subtitleStatus').textContent='Sous-titres chargés : '+file.name+' (aperçu activé).';}catch{document.getElementById('subtitleStatus').textContent='Impossible de lire ce fichier de sous-titres.';}});
   async function checkAdmin(user) {
     isAdmin=false;openBtn.hidden=true;
     if(!user)return;

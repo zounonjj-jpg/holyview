@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getCountries, getCountryCallingCode, isValidPhoneNumber, parsePhoneNumber } from 'libphonenumber-js';
 import './style.css';
+import { attachAdminDashboard } from './admin.js';
 
 const SUPABASE_URL = 'https://rewzjcmaexthotbimacu.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_SWMO0_i6w4hNMfO5O_0vJg_A2qwvhTF';
@@ -65,7 +66,7 @@ async function renderApp(){
  <div id="authError" class="error" role="alert"></div><div id="authSuccess" class="success" role="status"></div><button class="btn btn-pink submit" id="authSubmit" type="submit">Se connecter →</button></form><p class="fineprint">En continuant, tu acceptes les conditions d’utilisation et la politique de confidentialité de HOLYVIEW.</p></div></div>
  <div class="toast" id="toast" role="status" aria-live="polite"></div>
  <div class="player" id="player"><img id="playerImage" alt=""><div class="player-info"><b id="playerTitle">HOLYVIEW</b><small id="playerSubtitle">Lecteur</small></div><div class="player-controls"><button class="iconbtn" id="playToggle">▶</button><input type="range" min="0" max="100" value="0" aria-label="Progression de lecture"></div><button class="iconbtn" id="playerClose" aria-label="Fermer">×</button></div>`;
- bindUI(); await loadCatalog(); const {data}=await supabase.auth.getSession(); updateUser(data.session?.user||null);
+ bindUI(); await loadCatalog(); const {data}=await supabase.auth.getSession(); updateUser(data.session?.user||null); attachAdminDashboard({supabase,getUser:()=>currentUser,toast});
 }
 function setMode(mode){authMode=mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));$('nameField').hidden=mode!=='signup';$('phoneFields').hidden=mode!=='signup';$('fullName').required=mode==='signup';$('country').required=mode==='signup';$('phone').required=mode==='signup';$('authTitle').textContent=mode==='login'?'Bienvenue chez toi.':'Rejoins HOLYVIEW.';$('authDesc').textContent=mode==='login'?'Connecte-toi pour retrouver tes films, ta musique et tes favoris.':'Renseigne tes informations pour créer ton compte partout dans le monde.';$('authSubmit').textContent=mode==='login'?'Se connecter →':'Créer mon compte →';$('password').autocomplete=mode==='login'?'current-password':'new-password';$('authError').textContent='';$('authSuccess').textContent='';$('phoneFeedback').textContent=''}
 function openAuth(mode='login'){setMode(mode);$('authModal').classList.add('show');setTimeout(()=>(mode==='signup'?$('fullName'):$('email')).focus(),50)}

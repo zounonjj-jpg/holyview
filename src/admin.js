@@ -107,7 +107,7 @@ export async function attachAdminDashboard({supabase, getUser, toast}) {
         fetchAll('profiles','id,email,full_name,display_name,country_code,phone_number,created_at'),
         fetchAll('subscriptions','id,user_id,tier,status,starts_at,ends_at,created_at'),
         fetchAll('payments','id,user_id,amount,currency,status,created_at'),
-        fetchAll('movies','id,title,slug,status,is_featured,allow_offline_download,poster_path,created_at,video_asset_path,preview_asset_path,display_format,clip_start_seconds,clip_end_seconds,subtitles,movie_stats(view_count,like_count,comment_count,share_count)'),
+        fetchAll('movies','id,title,slug,synopsis,release_year,duration_seconds,status,is_featured,allow_offline_download,poster_path,created_at,video_asset_path,preview_asset_path,display_format,clip_start_seconds,clip_end_seconds,subtitles,movie_stats(view_count,like_count,comment_count,share_count)'),
         fetchAll('music_tracks','id,title,status,allow_offline_download,audio_asset_path,created_at')
       ]);
       users=u; subscriptions=s; payments=p; movies=m; tracks=t;

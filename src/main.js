@@ -86,14 +86,16 @@ function bindUI(){
  try{
   let result;
   if(authMode==='signup'){
-   const parsed=parsePhoneNumber(phone,country);
-   result=await supabase.auth.signUp({email,password,options:{data:{full_name:fullName,country_code:country,phone_number:parsed.number}}});
+   const phoneCheck=await supabase.functions.invoke('validate-phone',{body:{country,phone}});
+   if(phoneCheck.error) throw new Error('La vérification du téléphone est momentanément indisponible. Réessaie dans un instant.');
+   if(!phoneCheck.data?.valid) throw new Error(phoneCheck.data?.error||'Ce numéro ne correspond pas au pays sélectionné.');
+   result=await supabase.auth.signUp({email,password,options:{data:{full_name:fullName,country_code:country,phone_number:phoneCheck.data.e164}}});
   }else result=await supabase.auth.signInWithPassword({email,password});
   if(result.error)throw result.error;
   if(authMode==='signup'&&!result.data.session){$('authSuccess').textContent='Compte créé. Consulte ta boîte e-mail pour confirmer ton adresse avant de te connecter.';toast('Vérifie ton e-mail pour confirmer ton compte.');}
   else{updateUser(result.data.user);$('authModal').classList.remove('show');toast(authMode==='signup'?'Bienvenue sur HOLYVIEW !':'Connexion réussie.');}
  }catch(err){$('authError').textContent=err.message||'Une erreur est survenue. Réessaie.'}
- finally{$('authSubmit').disabled=false;setMode(authMode)}
+ finally{$('authSubmit').disabled=false;$('authSubmit').textContent=authMode==='login'?'Se connecter →':'Créer mon compte →'}
  };
  $('searchToggle').onclick=()=>{$('searchWrap').classList.toggle('show');if($('searchWrap').classList.contains('show'))$('searchInput').focus()};
  $('searchInput').oninput=render;$('explore').onclick=()=>$('films').scrollIntoView({behavior:'smooth'});$('mission').onclick=()=>toast('HOLYVIEW : des films et des musiques pour inspirer, encourager et rassembler.');document.querySelectorAll('[data-scroll]').forEach(b=>b.onclick=()=>$(b.dataset.scroll).scrollIntoView({behavior:'smooth'}));

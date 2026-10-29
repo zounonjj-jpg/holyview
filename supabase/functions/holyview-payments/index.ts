@@ -4,11 +4,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 const URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const SASPAY_API_KEY = (Deno.env.get("SASPAY_API_KEY") ?? "").trim();
+const SASPAY_API_KEY = (Deno.env.get("SASPAY_API_KEY") ?? "").trim(); // production key
+const SASPAY_TEST_API_KEY = (Deno.env.get("SASPAY_TEST_API_KEY") ?? "").trim();
 const SASPAY_WEBHOOK_SECRET = (Deno.env.get("SASPAY_WEBHOOK_SECRET") ?? "").trim();
+const SASPAY_TEST_WEBHOOK_SECRET = (Deno.env.get("SASPAY_TEST_WEBHOOK_SECRET") ?? "").trim();
 const SASPAY_API = "https://api.saspay.me/api/v1";
 const RETURN_URL = "https://holyview.vercel.app/";
-const TEST_KEY = /^sk_test_/i.test(SASPAY_API_KEY);
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-webhook-timestamp, x-webhook-event",
@@ -32,14 +33,19 @@ function checkoutUrl(raw: unknown): string | null {
     return u.protocol === "https:" && (u.hostname === "saspay.me" || u.hostname.endsWith(".saspay.me")) ? u.toString() : null;
   } catch { return null; }
 }
-async function saspay(path: string, init: RequestInit = {}) {
-  if (!SASPAY_API_KEY) throw new Error("La clé API SasPay manque dans les secrets Supabase.");
+async function saspay(path: string, init: RequestInit = {}, testMode = false) {
+  const apiKey = testMode ? SASPAY_TEST_API_KEY : SASPAY_API_KEY;
+  if (!apiKey) throw new Error(testMode
+    ? "La clé de test SASPAY_TEST_API_KEY n’est pas encore configurée dans les secrets Supabase."
+    : "La clé API de production SASPAY_API_KEY n’est pas configurée dans Supabase.");
+  if (testMode && !/^sk_test_/i.test(apiKey)) throw new Error("Le secret de test SasPay doit être une clé de test (sk_test_…).");
+  if (!testMode && /^sk_test_/i.test(apiKey)) throw new Error("Une clé de test ne peut pas être utilisée pour les paiements de production.");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(SASPAY_API + path, {
       ...init, signal: controller.signal,
-      headers: { Authorization: "Bearer " + SASPAY_API_KEY, "Content-Type": "application/json", ...(init.headers || {}) },
+      headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json", ...(init.headers || {}) },
     });
     const payload = await response.json().catch(() => ({})) as Record<string, any>;
     return { response, payload };
@@ -47,9 +53,9 @@ async function saspay(path: string, init: RequestInit = {}) {
     throw new Error("SasPay ne répond pas. Vérifie le statut avant de créer une autre session.");
   } finally { clearTimeout(timeout); }
 }
-async function sessionStatus(id: string): Promise<Record<string, any>> {
+async function sessionStatus(id: string, testMode = false): Promise<Record<string, any>> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Identifiant de session SasPay invalide.");
-  const { response, payload } = await saspay("/checkout-sessions/" + encodeURIComponent(id) + "/status/", { method: "GET" });
+  const { response, payload } = await saspay("/checkout-sessions/" + encodeURIComponent(id) + "/status/", { method: "GET" }, testMode);
   if (!response.ok || payload.success !== true || !payload.data || payload.data.id !== id) {
     throw new Error("Impossible de confirmer le paiement auprès de SasPay.");
   }
@@ -85,16 +91,28 @@ async function checkPayment(db: ReturnType<typeof admin>, userId: string, paymen
     .select("id,user_id,provider,provider_reference,amount,currency,status,metadata,subscription_id")
     .eq("id", paymentId).eq("user_id", userId).eq("provider", "saspay").maybeSingle();
   if (error || !p) return reply(404, { ok: false, error: "Cette demande de paiement n’appartient pas à ce compte." });
-  if (p.status === "succeeded") return reply(200, { ok: true, paid: true, paymentId, tier: p.metadata?.tier, alreadyProcessed: true });
+  const testMode = p.metadata?.gateway_mode === "test";
+  if (p.status === "succeeded") {
+    const testConfirmed = p.metadata?.test_mode_confirmed === true;
+    return reply(200, { ok: true, paid: true, paymentId, tier: p.metadata?.tier, alreadyProcessed: true, testMode: testConfirmed, activated: !testConfirmed });
+  }
   if (["failed", "refunded", "disabled"].includes(p.status)) return reply(200, { ok: true, paid: false, terminal: true, status: p.status });
   if (!p.provider_reference) return reply(409, { ok: false, error: "La session n’a pas d’identifiant confirmé. Ne relance pas le paiement ; une vérification est nécessaire." });
   let s: Record<string, any>;
-  try { s = await sessionStatus(String(p.provider_reference)); }
+  try { s = await sessionStatus(String(p.provider_reference), testMode); }
   catch (e) { return reply(503, { ok: false, error: e instanceof Error ? e.message : "Vérification SasPay indisponible." }); }
   if (paid(s)) {
+    if (testMode) {
+      const { error: updateError } = await db.from("payments").update({
+        status: "succeeded",
+        metadata: { ...(p.metadata ?? {}), test_mode_confirmed: true, verified_at: new Date().toISOString(), verification_source: "saspay_test_checkout_status" },
+      }).eq("id", paymentId).eq("status", "pending");
+      if (updateError) return reply(500, { ok: false, error: "Le résultat de test est confirmé mais n’a pas pu être enregistré." });
+      return reply(200, { ok: true, paid: true, testMode: true, activated: false, paymentId, tier: p.metadata?.tier });
+    }
     try {
       const activated = await activate(db, p);
-      return reply(200, { ok: true, paid: true, paymentId, tier: p.metadata?.tier, alreadyProcessed: !!activated.alreadyProcessed });
+      return reply(200, { ok: true, paid: true, paymentId, tier: p.metadata?.tier, alreadyProcessed: !!activated.alreadyProcessed, testMode: false, activated: true });
     } catch (e) {
       return reply(409, { ok: false, code: "PAYMENT_CONFIRMED_ACTIVATION_PENDING", error: e instanceof Error ? e.message : "Activation en attente." });
     }
@@ -115,10 +133,19 @@ async function resumeOrExpirePending(db: ReturnType<typeof admin>, userId: strin
   if (String(p.metadata?.tier ?? "") !== tier) return { response: reply(409, { ok: false, error: "Une autre formule a déjà une session en cours. Termine ou vérifie cette session avant de changer de formule." }) };
   if (!p.provider_reference) return { response: reply(409, { ok: false, error: "La création précédente a eu une réponse incertaine. Vérifie les sessions SasPay avant une nouvelle tentative." }) };
   try {
-    const s = await sessionStatus(String(p.provider_reference));
+    const testMode = p.metadata?.gateway_mode === "test";
+    const s = await sessionStatus(String(p.provider_reference), testMode);
     if (paid(s)) {
+      if (testMode) {
+        const { error: updateError } = await db.from("payments").update({
+          status: "succeeded",
+          metadata: { ...(p.metadata ?? {}), test_mode_confirmed: true, verified_at: new Date().toISOString(), verification_source: "saspay_test_checkout_status" },
+        }).eq("id", p.id).eq("status", "pending");
+        if (updateError) return { response: reply(500, { ok: false, error: "Le résultat de test n’a pas pu être enregistré." }) };
+        return { response: reply(200, { ok: true, paid: true, testMode: true, activated: false, paymentId: p.id, tier }) };
+      }
       await activate(db, p);
-      return { response: reply(200, { ok: true, paid: true, paymentId: p.id, tier }) };
+      return { response: reply(200, { ok: true, paid: true, paymentId: p.id, tier, testMode: false, activated: true }) };
     }
     if (terminal(s)) {
       await markFailed(db, String(p.id), { ...(p.metadata ?? {}), failure_reason: "provider_terminal_status", provider_status: s.status });
@@ -134,12 +161,15 @@ async function resumeOrExpirePending(db: ReturnType<typeof admin>, userId: strin
 
 async function createCheckout(db: ReturnType<typeof admin>, user: Record<string, any>, tier: string) {
   if (!["pro", "elite"].includes(tier)) return reply(400, { ok: false, error: "Formule invalide." });
-  if (!SASPAY_API_KEY) return reply(503, { ok: false, error: "La clé API SasPay manque dans les secrets Supabase." });
   let enabled = false;
   try { enabled = await paymentsEnabled(db); }
   catch { return reply(503, { ok: false, error: "Configuration des paiements indisponible." }); }
-  if (!enabled && !TEST_KEY) {
-    return reply(503, { ok: false, code: "PAYMENTS_DISABLED", error: "La production est protégée. Configure une clé SasPay de test pour valider le parcours avant d’ouvrir les paiements aux membres." });
+  const testMode = !enabled;
+  if (testMode && !/^sk_test_/i.test(SASPAY_TEST_API_KEY)) {
+    return reply(503, { ok: false, code: "TEST_KEY_REQUIRED", error: "Les paiements réels restent bloqués. Ajoute une clé de test SasPay sous le secret SASPAY_TEST_API_KEY pour vérifier le parcours sans débiter de vrais clients." });
+  }
+  if (!testMode && (!SASPAY_API_KEY || /^sk_test_/i.test(SASPAY_API_KEY))) {
+    return reply(503, { ok: false, code: "LIVE_KEY_REQUIRED", error: "La clé API de production est absente ou ressemble à une clé de test." });
   }
   const { data: offer, error: offerError } = await db.from("subscription_offers")
     .select("tier,monthly_price_xof,is_listed").eq("tier", tier).eq("is_listed", true).maybeSingle();
@@ -160,7 +190,7 @@ async function createCheckout(db: ReturnType<typeof admin>, user: Record<string,
   const { data: profile } = await db.from("profiles").select("full_name,display_name,email,phone_number").eq("id", user.id).maybeSingle();
   const name = String(profile?.full_name || profile?.display_name || user.user_metadata?.full_name || email.split("@")[0] || "Membre HOLYVIEW").trim().slice(0, 120);
   const phone = String(profile?.phone_number ?? "").trim();
-  const baseMeta = { tier, source: "HOLYVIEW", created_at: new Date().toISOString() };
+  const baseMeta = { tier, source: "HOLYVIEW", gateway_mode: testMode ? "test" : "live", created_at: new Date().toISOString() };
 
   let p: Record<string, any> | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -193,7 +223,7 @@ async function createCheckout(db: ReturnType<typeof admin>, user: Record<string,
   if (phone) requestBody.customer_phone = phone;
 
   let result: { response: Response; payload: Record<string, any> };
-  try { result = await saspay("/checkout-sessions/", { method: "POST", body: JSON.stringify(requestBody) }); }
+  try { result = await saspay("/checkout-sessions/", { method: "POST", body: JSON.stringify(requestBody) }, testMode); }
   catch (e) {
     await db.from("payments").update({ metadata: { ...baseMeta, checkout_creation_uncertain: true } }).eq("id", p.id).eq("status", "pending");
     return reply(503, { ok: false, paymentId: p.id, error: e instanceof Error ? e.message : "Réponse SasPay incertaine. Ne relance pas le paiement." });
@@ -230,7 +260,7 @@ async function createCheckout(db: ReturnType<typeof admin>, user: Record<string,
     console.error("HOLYVIEW could not save checkout session", saveError.code);
     return reply(500, { ok: false, paymentId: p.id, error: "La session a été créée mais son enregistrement a échoué. Ne paie pas une deuxième fois ; contacte l’assistance." });
   }
-  return reply(200, { ok: true, paymentId: p.id, tier, amount: Number(offer.monthly_price_xof), currency: "XOF", checkoutUrl: link, testMode: TEST_KEY });
+  return reply(200, { ok: true, paymentId: p.id, tier, amount: Number(offer.monthly_price_xof), currency: "XOF", checkoutUrl: link, testMode });
 }
 
 function constantTimeHexEqual(a: string, b: string) {
@@ -240,15 +270,19 @@ function constantTimeHexEqual(a: string, b: string) {
   return diff === 0;
 }
 async function validWebhook(raw: string, signature: string, timestamp: string) {
-  if (!SASPAY_WEBHOOK_SECRET || !/^\d{10}$/.test(timestamp) || !/^[0-9a-f]{64}$/i.test(signature)) return false;
+  const secrets = [SASPAY_WEBHOOK_SECRET, SASPAY_TEST_WEBHOOK_SECRET].filter(Boolean);
+  if (!secrets.length || !/^\d{10}$/.test(timestamp) || !/^[0-9a-f]{64}$/i.test(signature)) return false;
   if (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > 300) return false;
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(SASPAY_WEBHOOK_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(timestamp + "." + raw));
-  const expected = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
-  return constantTimeHexEqual(signature.toLowerCase(), expected);
+  for (const secret of secrets) {
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(timestamp + "." + raw));
+    const expected = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+    if (constantTimeHexEqual(signature.toLowerCase(), expected)) return true;
+  }
+  return false;
 }
 async function webhook(req: Request, raw: string) {
-  if (!SASPAY_WEBHOOK_SECRET) return reply(503, { ok: false, error: "Le secret de signature SasPay n’est pas encore configuré dans Supabase." });
+  if (!SASPAY_WEBHOOK_SECRET && !SASPAY_TEST_WEBHOOK_SECRET) return reply(503, { ok: false, error: "Le secret de signature SasPay n’est pas encore configuré dans Supabase." });
   if (!await validWebhook(raw, req.headers.get("X-Webhook-Signature") ?? "", req.headers.get("X-Webhook-Timestamp") ?? "")) {
     return reply(401, { ok: false, error: "Signature webhook invalide ou expirée." });
   }
@@ -290,7 +324,7 @@ async function webhook(req: Request, raw: string) {
       );
       const matches = await Promise.all(candidates.map(async (candidate: Record<string, any>) => {
         try {
-          const session = await sessionStatus(String(candidate.provider_reference));
+          const session = await sessionStatus(String(candidate.provider_reference), candidate.metadata?.gateway_mode === "test");
           const txRef = String(session.transaction_reference ?? "");
           const webhookRef = String(d.reference ?? "");
           if (!paid(session) || String(session.transaction_id ?? "") !== transactionId) return null;
@@ -311,7 +345,8 @@ async function webhook(req: Request, raw: string) {
   if (p.status !== "pending") return reply(200, { ok: true, ignored: true });
 
   try {
-    const s = await sessionStatus(String(p.provider_reference));
+    const testMode = p.metadata?.gateway_mode === "test";
+    const s = await sessionStatus(String(p.provider_reference), testMode);
     if (!paid(s)) return reply(200, { ok: true, awaitingConfirmation: true });
     if (String(s.transaction_id ?? "") !== transactionId && transactionId) {
       return reply(200, { ok: true, ignored: true });
@@ -320,8 +355,16 @@ async function webhook(req: Request, raw: string) {
     if (ref && txRef && ref !== txRef && ref !== String(p.provider_reference)) {
       return reply(200, { ok: true, ignored: true });
     }
+    if (testMode) {
+      const { error: updateError } = await db.from("payments").update({
+        status: "succeeded",
+        metadata: { ...(p.metadata ?? {}), test_mode_confirmed: true, verified_at: new Date().toISOString(), verification_source: "saspay_test_webhook_status" },
+      }).eq("id", p.id).eq("status", "pending");
+      if (updateError) return reply(500, { ok: false, error: "Le résultat de test n’a pas pu être enregistré." });
+      return reply(200, { ok: true, testMode: true, activated: false });
+    }
     await activate(db, p);
-    return reply(200, { ok: true });
+    return reply(200, { ok: true, testMode: false, activated: true });
   } catch {
     return reply(503, { ok: false, error: "Confirmation différée ; SasPay peut réessayer le webhook." });
   }
@@ -344,7 +387,18 @@ Deno.serve(async (req: Request) => {
   if (action === "config") {
     let enabled = false;
     try { enabled = await paymentsEnabled(db); } catch { /* keep closed */ }
-    return reply(200, { ok: true, provider: "saspay", configured: !!SASPAY_API_KEY, paymentsEnabled: enabled || TEST_KEY, productionEnabled: enabled, testMode: TEST_KEY, webhookConfigured: !!SASPAY_WEBHOOK_SECRET });
+    const liveKeyConfigured = !!SASPAY_API_KEY && !/^sk_test_/i.test(SASPAY_API_KEY);
+    const testKeyConfigured = !!SASPAY_TEST_API_KEY && /^sk_test_/i.test(SASPAY_TEST_API_KEY);
+    return reply(200, {
+      ok: true, provider: "saspay",
+      configured: enabled ? liveKeyConfigured : testKeyConfigured,
+      liveKeyConfigured, testKeyConfigured,
+      paymentsEnabled: enabled ? liveKeyConfigured : testKeyConfigured,
+      productionEnabled: enabled && liveKeyConfigured,
+      testMode: !enabled,
+      webhookConfigured: !!SASPAY_WEBHOOK_SECRET,
+      testWebhookConfigured: !!SASPAY_TEST_WEBHOOK_SECRET
+    });
   }
   if (!["create_checkout", "check_payment"].includes(action)) {
     return body.event ? await webhook(req, raw) : reply(400, { ok: false, error: "Action de paiement inconnue." });

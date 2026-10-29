@@ -243,10 +243,12 @@ function setupInstallPrompt(){
      button.disabled=true;
      button.textContent='Installation…';
      try{
-       const choice=await installEvent.prompt();
+       const choicePromise=installEvent.userChoice;
+       await installEvent.prompt();
+       const choice=await choicePromise;
        if(choice?.outcome==='accepted'){
          banner.hidden=true;
-         toast('Demande d’installation acceptée.');
+         toast('HOLYVIEW a été ajouté à tes applications.');
        }else{
          button.disabled=false;
          button.textContent='Installer';
@@ -272,7 +274,7 @@ function setupInstallPrompt(){
      help.textContent='Ce navigateur ne propose pas l’installation directe de PWA. Ouvre HOLYVIEW dans une version récente de Chrome ou Edge.';
      return;
    }
-   help.textContent='Le navigateur n’a pas encore ouvert la demande d’installation. Réessaie dans un instant ou utilise le menu Installer l’application du navigateur si disponible.';
+   help.textContent='Le navigateur n’a pas encore autorisé l’installation directe. Garde HOLYVIEW ouvert quelques instants puis réessaie.';
  };
  $('installDismiss').onclick=()=>{banner.hidden=true};
 }

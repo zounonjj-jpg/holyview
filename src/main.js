@@ -314,6 +314,7 @@ function bindUI(){
  $('detailFullWatch').onclick=async()=>{if(!currentUser){openAuth('login');return}const item=activeDetailMovie;$('detailClose').click();window.dispatchEvent(new CustomEvent('holyview:play',{detail:{kind:'movie',item}}));await loadCatalog()};
  $('playerClose').onclick=()=>$('player').classList.remove('show');$('playToggle').onclick=()=>toast('Le lecteur sera connecté aux médias privés dans la prochaine étape.');
  window.addEventListener('holyview:view-recorded',()=>{void loadCatalog();if(activeDetailMovie)void refreshDetailStats()});window.addEventListener('holyview:offers-updated',()=>{void loadOffers()});
+ window.addEventListener('holyview:show-plans',()=>{const target=$('plans');if(target)target.scrollIntoView({behavior:'smooth',block:'start'})});
  supabase.auth.onAuthStateChange((_event,session)=>updateUser(session?.user||null));
 }
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('PWA service worker',e));

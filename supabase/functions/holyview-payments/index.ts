@@ -130,8 +130,21 @@ async function resumeOrExpirePending(db: ReturnType<typeof admin>, userId: strin
     .eq("user_id", userId).eq("provider", "saspay").eq("status", "pending")
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error || !p) return { response: reply(409, { ok: false, error: "Une demande de paiement est déjà en cours. Vérifie son état avant de recommencer." }) };
-  if (String(p.metadata?.tier ?? "") !== tier) return { response: reply(409, { ok: false, error: "Une autre formule a déjà une session en cours. Termine ou vérifie cette session avant de changer de formule." }) };
-  if (!p.provider_reference) return { response: reply(409, { ok: false, error: "La création précédente a eu une réponse incertaine. Vérifie les sessions SasPay avant une nouvelle tentative." }) };
+
+  const currentTier = String(p.metadata?.tier ?? "");
+  const differentTier = currentTier !== tier;
+
+  if (!p.provider_reference) {
+    // Local failures which happened before any provider request are safe to close.
+    // A transport timeout is different: the provider may have created a session without
+    // returning its ID, so preserve that record and never risk creating a duplicate charge.
+    if (p.metadata?.checkout_creation_uncertain !== true) {
+      await markFailed(db, String(p.id), { ...(p.metadata ?? {}), failure_reason: "no_provider_session_reference", closed_at: new Date().toISOString() });
+      return { retry: true };
+    }
+    return { response: reply(409, { ok: false, error: "La réponse de la demande précédente reste incertaine. Vérifie les sessions SasPay avant de créer un autre paiement." }) };
+  }
+
   try {
     const testMode = p.metadata?.gateway_mode === "test";
     const s = await sessionStatus(String(p.provider_reference), testMode);
@@ -142,16 +155,30 @@ async function resumeOrExpirePending(db: ReturnType<typeof admin>, userId: strin
           metadata: { ...(p.metadata ?? {}), test_mode_confirmed: true, verified_at: new Date().toISOString(), verification_source: "saspay_test_checkout_status" },
         }).eq("id", p.id).eq("status", "pending");
         if (updateError) return { response: reply(500, { ok: false, error: "Le résultat de test n’a pas pu être enregistré." }) };
-        return { response: reply(200, { ok: true, paid: true, testMode: true, activated: false, paymentId: p.id, tier }) };
+        if (differentTier) return { retry: true };
+        return { response: reply(200, { ok: true, paid: true, testMode: true, activated: false, paymentId: p.id, tier: currentTier }) };
       }
+
       await activate(db, p);
-      return { response: reply(200, { ok: true, paid: true, paymentId: p.id, tier, testMode: false, activated: true }) };
+      // The previous transaction was genuinely paid, but the member requested another tier.
+      // Reconcile it first, then let the caller create the requested checkout on the next loop.
+      if (differentTier) return { retry: true };
+      return { response: reply(200, { ok: true, paid: true, paymentId: p.id, tier: currentTier, testMode: false, activated: true }) };
     }
+
     if (terminal(s)) {
       await markFailed(db, String(p.id), { ...(p.metadata ?? {}), failure_reason: "provider_terminal_status", provider_status: s.status });
       return { retry: true };
     }
+
     const link = checkoutUrl(p.metadata?.checkout_url);
+    if (differentTier) {
+      return { response: reply(409, {
+        ok: false,
+        code: "OTHER_CHECKOUT_STILL_PENDING",
+        error: "Une session " + String(currentTier || "d’abonnement").toUpperCase() + " est encore ouverte chez SasPay. Termine-la ou annule-la avant de choisir une autre formule afin d’éviter un double débit."
+      }) };
+    }
     if (link) return { response: reply(200, { ok: true, resumed: true, paymentId: p.id, tier, checkoutUrl: link, status: "pending" }) };
   } catch (e) {
     return { response: reply(503, { ok: false, error: e instanceof Error ? e.message : "Vérification SasPay indisponible." }) };

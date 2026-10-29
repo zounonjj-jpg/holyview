@@ -179,6 +179,81 @@ async function updateMembershipStatus(user){
   panel.innerHTML='<div><strong>Ton espace HOLYVIEW</strong><span>Impossible de vérifier ta formule maintenant. Réessaie dans un instant.</span></div><a href="#plans" class="member-status-action">Voir les formules</a>';
  }
 }
+
+let paymentReturnInFlight = false;
+let completedPaymentReturnId = null;
+
+async function invokeSasPayAction(payload) {
+ const result = await supabase.functions.invoke('holyview-payments', { body: payload });
+ if(result.error) {
+  let message = result.error.message || 'Le service de paiement est indisponible.';
+  try {
+   const ctx = result.error.context;
+   const details = ctx?.clone ? await ctx.clone().json() : (ctx?.json ? await ctx.json() : null);
+   if(details?.error) message = details.error;
+  } catch {}
+  throw new Error(message);
+ }
+ if(result.data?.ok === false && result.data?.error) throw new Error(result.data.error);
+ return result.data || {};
+}
+
+function clearPaymentReturnParams(paymentId) {
+ const url = new URL(location.href);
+ if(url.searchParams.get('hv_payment_id') === paymentId) url.searchParams.delete('hv_payment_id');
+ url.searchParams.delete('hv_payment_return');
+ history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+}
+
+function showPaymentPending(paymentId, message) {
+ const panel = $('memberPlanBanner');
+ if(!panel) return;
+ panel.hidden = false;
+ panel.innerHTML = '<div><strong>Paiement en cours de confirmation</strong><span>' + esc(message) + '</span></div><button type="button" class="btn btn-green" data-check-payment="' + esc(paymentId) + '">Vérifier le paiement</button>';
+}
+
+async function checkSasPayPayment(paymentId, fromReturn = false) {
+ if(!/^[0-9a-f-]{36}$/i.test(paymentId)) {
+  toast('La référence de paiement est invalide.');
+  return;
+ }
+ if(!currentUser) {
+  toast('Connecte-toi pour vérifier ton paiement.');
+  openAuth('login');
+  return;
+ }
+ try {
+  const result = await invokeSasPayAction({ action: 'check_payment', paymentId });
+  if(result.paid) {
+   completedPaymentReturnId = paymentId;
+   clearPaymentReturnParams(paymentId);
+   toast('Paiement confirmé ! Ta formule ' + String(result.tier || '').toUpperCase() + ' est activée.');
+   await updateMembershipStatus(currentUser);
+   return;
+  }
+  if(result.terminal) {
+   completedPaymentReturnId = paymentId;
+   clearPaymentReturnParams(paymentId);
+   toast('Cette session SasPay n’a pas abouti. Tu peux choisir une nouvelle session.');
+   await updateMembershipStatus(currentUser);
+   return;
+  }
+  showPaymentPending(paymentId, 'SasPay n’a pas encore confirmé le statut final. N’effectue pas un deuxième paiement ; vérifie à nouveau dans quelques instants.');
+  if(fromReturn) toast('Retour de SasPay reçu. Le statut final est encore en attente de confirmation.');
+ } catch(error) {
+  showPaymentPending(paymentId, 'La confirmation n’a pas pu être récupérée. Ne paie pas à nouveau ; réessaie la vérification.');
+  if(fromReturn) toast((error && error.message) || 'Vérification indisponible. Réessaie dans un instant.');
+ }
+}
+
+async function processPaymentReturn() {
+ const paymentId = new URL(location.href).searchParams.get('hv_payment_id');
+ if(!paymentId || !currentUser || paymentReturnInFlight || completedPaymentReturnId === paymentId) return;
+ paymentReturnInFlight = true;
+ try { await checkSasPayPayment(paymentId, true); }
+ finally { paymentReturnInFlight = false; }
+}
+
 window.addEventListener('holyview:trial-update',event=>renderTrialMembershipStatus(event.detail?.remainingSeconds));
 
 function countrySelect(){return countryOptions.map(c=>'<option value="'+c.code+'">'+esc(c.name)+' ('+c.dial+')</option>').join('')}
@@ -191,7 +266,7 @@ async function renderApp(){
  <section class="section shorts-section" id="shorts"><div class="section-head"><div><h2>Shorts <span class="pink">✦</span></h2><div class="sub">Des formats courts chrétiens, séparés des vidéos classiques.</div></div><button class="see" data-scroll="catalogue">Tous les Shorts ↗</button></div><div class="cards shorts-cards" id="shortCards"></div></section>
  <section class="section music" id="music" hidden><div class="section-head"><div><h2>Musique inspirante <span class="pink">♫</span></h2><div class="sub">Des mélodies pour accompagner chaque moment</div></div><button class="see" data-scroll="music">Toute la musique ↗</button></div><div class="cards" id="musicCards"></div></section>
  <section class="section" id="categories" hidden><div class="section-head"><div><h2>Explore par univers</h2><div class="sub">Trouve ton prochain moment d’inspiration</div></div></div><div class="filters"><button class="filter active" data-cat="all">Tout le catalogue</button><button class="filter" data-cat="videos">Vidéos</button><button class="filter" data-cat="shorts">Shorts</button><button class="filter" data-cat="bible">Histoires bibliques</button><button class="filter" data-cat="family">Famille</button><button class="filter" data-cat="music">Musique gospel</button><button class="filter" data-cat="new">Nouveautés</button></div><div class="cards" id="catalogue"></div></section>
- <section class="section plans-section" id="plans"><div class="section-head"><div><h2>Choisis ton expérience <span class="pink">HOLYVIEW</span></h2><div class="sub">Gratuit, PRO ou ELITE : les différences sont expliquées clairement.</div></div></div><div id="memberPlanBanner" class="member-plan-banner" hidden></div><p class="plans-payment-note"><strong>À savoir :</strong> chaque compte reçoit 5 heures de visionnage et d’écoute gratuites. Les prix PRO/ELITE et le paiement sécurisé seront activés après la configuration du compte marchand. Aucun achat n’est actuellement débité.</p><div class="plan-grid" id="plansGrid"></div></section><section class="cta" id="memberCta"><div><h2>Débloque l’expérience HOLYVIEW.</h2><p>Crée ton compte pour profiter de 5 heures gratuites, découvrir les aperçus et choisir ensuite la formule qui te convient.</p></div><button class="btn btn-green" id="joinNow">Créer mon compte ✦</button></section></main>
+ <section class="section plans-section" id="plans"><div class="section-head"><div><h2>Choisis ton expérience <span class="pink">HOLYVIEW</span></h2><div class="sub">Gratuit, PRO ou ELITE : les différences sont expliquées clairement.</div></div></div><div id="memberPlanBanner" class="member-plan-banner" hidden></div><p class="plans-payment-note"><strong>À savoir :</strong> le checkout est créé côté serveur et l’abonnement s’active uniquement après confirmation du statut auprès de SasPay. Les paiements en production restent désactivés jusqu’à validation complète des tests.</p><div class="plan-grid" id="plansGrid"></div></section><section class="cta" id="memberCta"><div><h2>Débloque l’expérience HOLYVIEW.</h2><p>Crée ton compte pour profiter de 5 heures gratuites, découvrir les aperçus et choisir ensuite la formule qui te convient.</p></div><button class="btn btn-green" id="joinNow">Créer mon compte ✦</button></section></main>
  <footer class="footer"><div>${logo()}<p>Une plateforme pensée pour célébrer la foi à travers le cinéma, la musique et les histoires qui rassemblent.</p><span>© 2026 HOLYVIEW. Tous droits réservés.</span></div><div><strong>À PROPOS</strong><div class="footer-links"><a href="#home">Notre mission</a><a href="#terms">Conditions</a><a href="#privacy">Confidentialité</a></div><p id="terms">Les contenus doivent être diffusés avec les droits et autorisations nécessaires.</p><p id="privacy">Les informations de compte sont utilisées pour fournir les services HOLYVIEW.</p></div></footer>
  <div class="modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle"><div class="dialog"><button class="close" id="authClose" aria-label="Fermer">×</button>${logo()}<h2 id="authTitle">Bienvenue chez toi.</h2><p id="authDesc">Connecte-toi pour retrouver tes films, ta musique et tes favoris.</p><div class="tabs"><button class="active" data-mode="login">Connexion</button><button data-mode="signup">Créer un compte</button></div>
  <form id="authForm" novalidate><div id="nameField" class="field" hidden><span>Nom complet *</span><input id="fullName" autocomplete="name" maxlength="100" placeholder="Ton prénom et ton nom"></div>
@@ -207,7 +282,7 @@ async function renderApp(){
 }
 function setMode(mode){authMode=mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));$('nameField').hidden=mode!=='signup';$('phoneFields').hidden=mode!=='signup';$('fullName').required=mode==='signup';$('country').required=mode==='signup';$('phone').required=mode==='signup';$('authTitle').textContent=mode==='login'?'Bienvenue chez toi.':'Rejoins HOLYVIEW.';$('authDesc').textContent=mode==='login'?'Connecte-toi pour retrouver tes films, ta musique et tes favoris.':'Renseigne tes informations pour créer ton compte partout dans le monde.';$('authSubmit').textContent=mode==='login'?'Se connecter →':'Créer mon compte →';$('password').autocomplete=mode==='login'?'current-password':'new-password';$('authError').textContent='';$('authSuccess').textContent='';$('phoneFeedback').textContent=''}
 function openAuth(mode='login'){setMode(mode);$('authModal').classList.add('show');setTimeout(()=>(mode==='signup'?$('fullName'):$('email')).focus(),50)}
-function updateUser(user){currentUser=user;$('authOpen').textContent=user?'Déconnexion':'Se connecter';$('signupOpen').hidden=!!user;$('userChip').hidden=!user;const hero=$('home');hero?.classList.toggle('signed-in',!!user);$('heroJoinNow').hidden=!!user;$('joinNow').textContent=user?'Continuer à explorer ✦':'Créer mon compte ✦';$('music').hidden=!user||!tracks.length;$('categories').hidden=!user;$('memberCta').hidden=!!user;document.querySelector('.footer').hidden=!user;$('musicNav').hidden=!user||!tracks.length;$('videoSectionSubtitle').textContent=user?'Regarde les vidéos complètes, aime, commente et partage.':'Regarde les aperçus. Crée un compte pour accéder aux vidéos complètes.';$('heroTitle').innerHTML=user?'Bienvenue sur<br>HOLY<span class="pink">VIEW.</span>':'Des histoires<br>qui célèbrent<br><span class="pink">JÉSUS.</span>';$('heroDescription').textContent=user?'Ton espace d’inspiration est prêt. Jésus reste au cœur de HOLYVIEW : découvre des films chrétiens, des récits bibliques et des musiques qui fortifient ta foi.':'Le cinéma chrétien, les récits bibliques et la musique qui élève l’âme. Une expérience inspirée par Jésus, la lumière du monde.';if(user){$('userChip').textContent=user.user_metadata?.full_name||user.email?.split('@')[0]||'Connecté';$('userChip').hidden=false}if(typeof activeDetailMovie!=='undefined'&&activeDetailMovie&&!$('videoDetailModal').hidden){$('detailFullWatch').hidden=!user;$('detailLike').disabled=false;$('detailLike').textContent=user?'♡ J’aime':'♡ J’aime · se connecter';$('detailCommentForm').hidden=!user;$('detailJoin').hidden=!!user;if(user){void loadDetailComments();void refreshDetailStats()}else $('detailCommentsList').innerHTML='<p class="detail-muted">Inscris-toi ou connecte-toi pour voir et publier les commentaires.</p>'};void updateMembershipStatus(user);}
+function updateUser(user){currentUser=user;$('authOpen').textContent=user?'Déconnexion':'Se connecter';$('signupOpen').hidden=!!user;$('userChip').hidden=!user;const hero=$('home');hero?.classList.toggle('signed-in',!!user);$('heroJoinNow').hidden=!!user;$('joinNow').textContent=user?'Continuer à explorer ✦':'Créer mon compte ✦';$('music').hidden=!user||!tracks.length;$('categories').hidden=!user;$('memberCta').hidden=!!user;document.querySelector('.footer').hidden=!user;$('musicNav').hidden=!user||!tracks.length;$('videoSectionSubtitle').textContent=user?'Regarde les vidéos complètes, aime, commente et partage.':'Regarde les aperçus. Crée un compte pour accéder aux vidéos complètes.';$('heroTitle').innerHTML=user?'Bienvenue sur<br>HOLY<span class="pink">VIEW.</span>':'Des histoires<br>qui célèbrent<br><span class="pink">JÉSUS.</span>';$('heroDescription').textContent=user?'Ton espace d’inspiration est prêt. Jésus reste au cœur de HOLYVIEW : découvre des films chrétiens, des récits bibliques et des musiques qui fortifient ta foi.':'Le cinéma chrétien, les récits bibliques et la musique qui élève l’âme. Une expérience inspirée par Jésus, la lumière du monde.';if(user){$('userChip').textContent=user.user_metadata?.full_name||user.email?.split('@')[0]||'Connecté';$('userChip').hidden=false}if(typeof activeDetailMovie!=='undefined'&&activeDetailMovie&&!$('videoDetailModal').hidden){$('detailFullWatch').hidden=!user;$('detailLike').disabled=false;$('detailLike').textContent=user?'♡ J’aime':'♡ J’aime · se connecter';$('detailCommentForm').hidden=!user;$('detailJoin').hidden=!!user;if(user){void loadDetailComments();void refreshDetailStats()}else $('detailCommentsList').innerHTML='<p class="detail-muted">Inscris-toi ou connecte-toi pour voir et publier les commentaires.</p>'};void updateMembershipStatus(user).then(()=>{if(user)void processPaymentReturn()});}
 function updateCallingCode(){const c=$('country').value;$('callingCode').textContent=c?'+'+getCountryCallingCode(c):'+—';validatePhone(false)}
 function validatePhone(show){if(authMode!=='signup'||!$('country').value||!$('phone').value.trim()){if(show)$('phoneFeedback').textContent='Choisis un pays et saisis ton numéro.';return false}const country=$('country').value,raw=$('phone').value.trim();let valid=false;try{valid=isValidPhoneNumber(raw,country);const parsed=parsePhoneNumber(raw,country);if(parsed && parsed.country && parsed.country!==country)valid=false}catch{}$('phoneFeedback').className=valid?'success':'error';$('phoneFeedback').textContent=valid?'Format valide pour '+regionNames.of(country)+'.':(raw.length<4?'':'Ce numéro ne correspond pas au format attendu pour '+regionNames.of(country)+'.');return valid}
 let deferredInstallPrompt=null;
@@ -281,7 +356,32 @@ function setupInstallPrompt(){
 function bindUI(){
  setupInstallPrompt();
  $('authOpen').onclick=async()=>{if(currentUser){await supabase.auth.signOut();updateUser(null);toast('Tu es déconnecté.')}else openAuth('login')};$('signupOpen').onclick=()=>openAuth('signup');
- $('joinNow').onclick=()=>currentUser?$('videos').scrollIntoView({behavior:'smooth'}):openAuth('signup');$('heroJoinNow').onclick=()=>openAuth('signup');$('plansGrid').addEventListener('click',e=>{const button=e.target.closest('[data-plan-select]');if(!button)return;const tier=button.dataset.planSelect;if(tier==='free'){if(!currentUser)openAuth('signup');else $('videos').scrollIntoView({behavior:'smooth'});return}if(!currentUser){openAuth('signup');toast('Crée ton compte pour préparer ton abonnement '+tier.toUpperCase()+'.');return}toast('Le paiement PRO/ELITE n’est pas encore activé. Le compte marchand et la confirmation sécurisée seront connectés avant toute souscription.');});$('authClose').onclick=()=>$('authModal').classList.remove('show');$('authModal').onclick=e=>{if(e.target===$('authModal'))$('authModal').classList.remove('show')};
+ $('joinNow').onclick=()=>currentUser?$('videos').scrollIntoView({behavior:'smooth'}):openAuth('signup');$('heroJoinNow').onclick=()=>openAuth('signup');$('plansGrid').addEventListener('click',e=>{
+ const button=e.target.closest('[data-plan-select]');if(!button)return;
+ const tier=button.dataset.planSelect;
+ if(tier==='free'){if(!currentUser)openAuth('signup');else $('videos').scrollIntoView({behavior:'smooth'});return}
+ if(!currentUser){openAuth('signup');toast('Crée ton compte pour préparer ton abonnement '+tier.toUpperCase()+'.');return}
+ const originalLabel=button.textContent;
+ button.disabled=true;button.textContent='Préparation du paiement…';
+ void (async()=>{
+  try{
+   const result=await invokeSasPayAction({action:'create_checkout',tier});
+   if(result.paid){toast('Ce paiement est déjà confirmé.');await updateMembershipStatus(currentUser);button.disabled=false;button.textContent=originalLabel;return}
+   if(!result.checkoutUrl||!result.paymentId)throw new Error('SasPay n’a pas renvoyé de lien de paiement valide.');
+   toast(result.testMode?'Ouverture du checkout de test SasPay…':'Ouverture du paiement sécurisé SasPay…');
+   window.location.assign(result.checkoutUrl);
+  }catch(error){
+   toast((error&&error.message)||'Impossible de préparer le paiement. Réessaie plus tard.');
+   if(button.isConnected){button.disabled=false;button.textContent=originalLabel}
+  }
+ })();
+});
+$('memberPlanBanner').addEventListener('click',e=>{
+ const button=e.target.closest('[data-check-payment]');if(!button)return;
+ const paymentId=button.dataset.checkPayment;
+ button.disabled=true;button.textContent='Vérification…';
+ void checkSasPayPayment(paymentId,false);
+});$('authClose').onclick=()=>$('authModal').classList.remove('show');$('authModal').onclick=e=>{if(e.target===$('authModal'))$('authModal').classList.remove('show')};
  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
  $('togglePassword').onclick=()=>{const p=$('password'),show=p.type==='password';p.type=show?'text':'password';$('togglePassword').textContent=show?'Masquer':'Afficher';$('togglePassword').setAttribute('aria-pressed',String(show))};
  $('country').addEventListener('change',updateCallingCode);$('phone').addEventListener('input',()=>validatePhone(false));$('phone').addEventListener('blur',()=>validatePhone(true));

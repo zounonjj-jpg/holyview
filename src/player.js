@@ -8,22 +8,39 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
         <header class="hv-player-head"><div class="hv-player-heading"><strong id="hvPlayerTitle">HOLYVIEW</strong><small id="hvPlayerSubtitle">Lecture sécurisée</small></div><button type="button" class="hv-player-close" id="hvPlayerClose" aria-label="Fermer le lecteur">×</button></header>
         <div class="hv-player-media"><video id="hvVideo" controls playsinline preload="metadata" hidden></video><audio id="hvAudio" controls preload="metadata" hidden></audio></div>
         <p id="hvPlayerMessage" class="hv-player-message" role="status"></p>
+        <button type="button" id="hvPlayerPlans" class="hv-player-plans" hidden>Voir PRO et ELITE</button>
       </div>
     </div>`);
   const modal=document.getElementById('hvPlayerModal'),video=document.getElementById('hvVideo'),audio=document.getElementById('hvAudio');
-  const title=document.getElementById('hvPlayerTitle'),subtitle=document.getElementById('hvPlayerSubtitle'),message=document.getElementById('hvPlayerMessage');
-  let sessionId=null, heartbeat=null, heartbeatTarget=null, opening=false, activeClipStart=0, activeClipEnd=null, subtitleUrl=null, activeMovieId=null, viewLogged=false;
+  const title=document.getElementById('hvPlayerTitle'),subtitle=document.getElementById('hvPlayerSubtitle'),message=document.getElementById('hvPlayerMessage'),plansButton=document.getElementById('hvPlayerPlans');
+  let sessionId=null, heartbeat=null, heartbeatTarget=null, opening=false, activeClipStart=0, activeClipEnd=null, subtitleUrl=null, activeMovieId=null, viewLogged=false, lastKnownTrialSeconds=null;
+  const trialAlertThresholds=[{seconds:4*3600,label:'4 heures'},{seconds:2*3600,label:'2 heures'},{seconds:3600,label:'1 heure'},{seconds:1800,label:'30 minutes'}];
+  const publishTrialRemaining=remainingSeconds=>window.dispatchEvent(new CustomEvent('holyview:trial-update',{detail:{remainingSeconds}}));
+  const showPlansButton=()=>{plansButton.hidden=false};
   const clearHeartbeat=()=>{if(heartbeat){clearInterval(heartbeat);heartbeat=null}heartbeatTarget=null;};
   const sendHeartbeat=async()=>{
     if(!sessionId)return;
     try{
       const state=await invoke({action:'heartbeat',sessionId});
+      if(state.trialRemainingSeconds!==null&&state.trialRemainingSeconds!==undefined){
+        const remaining=Number(state.trialRemainingSeconds);
+        publishTrialRemaining(remaining);
+        if(lastKnownTrialSeconds!==null&&remaining<lastKnownTrialSeconds){
+          const crossed=trialAlertThresholds.find(item=>lastKnownTrialSeconds>item.seconds&&remaining<=item.seconds);
+          if(crossed)toast('Il te reste environ '+crossed.label+' gratuites. Passe à PRO (1 000 FCFA/mois) ou ELITE (2 000 FCFA/mois) pour continuer sans limite.');
+        }
+        lastKnownTrialSeconds=remaining;
+      }
       if(state.stopped){
         const target=heartbeatTarget;
         clearHeartbeat();
         if(target)target.pause();
         message.textContent=state.error||'Accès interrompu.';
         message.className='hv-player-message error';
+        if(state.trialRemainingSeconds===0||/essai|PRO|ELITE|abonnement/i.test(state.error||'')){
+          showPlansButton();
+          toast('Ton accès nécessite une formule adaptée. Consulte les offres PRO et ELITE.');
+        }
         return;
       }
       if(state.trialRemainingSeconds!==null&&state.trialRemainingSeconds!==undefined){
@@ -58,17 +75,21 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     video.pause();audio.pause();
     if(old){try{await supabase.functions.invoke('holyview-playback',{body:{action:'stop',sessionId:old}})}catch{}}
   };
-  const close=async()=>{await stopSession();modal.hidden=true;video.removeAttribute('src');audio.removeAttribute('src');video.querySelectorAll('track').forEach(t=>t.remove());if(subtitleUrl){URL.revokeObjectURL(subtitleUrl);subtitleUrl=null}video.load();audio.load();message.textContent='';message.className='hv-player-message'};
+  const close=async()=>{await stopSession();modal.hidden=true;plansButton.hidden=true;video.removeAttribute('src');audio.removeAttribute('src');video.querySelectorAll('track').forEach(t=>t.remove());if(subtitleUrl){URL.revokeObjectURL(subtitleUrl);subtitleUrl=null}video.load();audio.load();message.textContent='';message.className='hv-player-message'};
   async function play(detail) {
     if(opening)return;
     const user=getUser();
     if(!user){openAuth('login');toast('Connecte-toi pour accéder à ce média.');return}
-    opening=true;activeMovieId=detail.kind==='movie'?detail.item.id:null;viewLogged=false;message.textContent='Vérification de tes droits de lecture…';message.className='hv-player-message';modal.hidden=false;
+    opening=true;activeMovieId=detail.kind==='movie'?detail.item.id:null;viewLogged=false;lastKnownTrialSeconds=null;plansButton.hidden=true;message.textContent='Vérification de tes droits de lecture…';message.className='hv-player-message';modal.hidden=false;
     title.textContent=detail.item.title||'HOLYVIEW';subtitle.textContent=detail.kind==='movie'?(detail.item.display_format==='short'?'Short · lecture sécurisée · cadrage 9:16':'Vidéo · lecture sécurisée · cadrage préservé'):'Musique · lecture sécurisée';video.classList.toggle('hv-short',detail.kind==='movie'&&detail.item.display_format==='short');
     try{
       await stopSession();
       const data=await invoke({action:'authorize',mediaType:detail.kind,mediaId:detail.item.id});
       sessionId=data.sessionId;
+      if(data.trialRemainingSeconds!==null&&data.trialRemainingSeconds!==undefined){
+        lastKnownTrialSeconds=Number(data.trialRemainingSeconds);
+        publishTrialRemaining(lastKnownTrialSeconds);
+      }
       video.hidden=detail.kind!=='movie';audio.hidden=detail.kind!=='track';
       const target=detail.kind==='movie'?video:audio;
       if(subtitleUrl){URL.revokeObjectURL(subtitleUrl);subtitleUrl=null}
@@ -88,10 +109,12 @@ export function attachPlayer({supabase,getUser,openAuth,toast}) {
     }catch(error){
       message.textContent=error.message||'Ce média ne peut pas être lu actuellement.';
       message.className='hv-player-message error';
+      if(/essai|PRO|ELITE|abonnement|formule/i.test(message.textContent))showPlansButton();
       toast(error.message||'Lecture non autorisée.');
     }finally{opening=false}
   }
   document.getElementById('hvPlayerClose').addEventListener('click',close);
+  plansButton.addEventListener('click',async()=>{await close();window.dispatchEvent(new CustomEvent('holyview:show-plans'))});
   modal.addEventListener('click',e=>{if(e.target===modal)close()});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
   [video,audio].forEach(target=>{

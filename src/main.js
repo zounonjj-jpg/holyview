@@ -112,8 +112,7 @@ function renderOffers(){
    visibleOffers=state.daysToEnd!==null&&state.daysToEnd<=7&&state.daysToEnd>=0
     ?visibleOffers.filter(o=>o.tier==='elite'):[];
   }else if(state.active&&state.tier==='pro'){
-   visibleOffers=(state.showEliteUpsell||(state.daysToEnd!==null&&state.daysToEnd<=7&&state.daysToEnd>=0))
-    ?visibleOffers.filter(o=>o.tier==='elite'):[];
+   visibleOffers=visibleOffers.filter(o=>o.tier==='elite');
   }else{
    visibleOffers=visibleOffers.filter(o=>['pro','elite'].includes(o.tier));
   }

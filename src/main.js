@@ -95,8 +95,8 @@ async function loadOffers(){
  if(error)console.warn('HOLYVIEW subscription offers',error);
  const fallback=[
   {tier:'free',monthly_price_xof:0,headline:'Découvrir HOLYVIEW',description:'Une enveloppe de 5 heures de lecture offerte par compte.',features:['5 heures gratuites de visionnage et d’écoute','Aperçus des films et vidéos','Accès aux contenus classés Gratuit']},
-  {tier:'pro',monthly_price_xof:null,headline:'Profiter sans limite',description:'La formule pour regarder et écouter le catalogue courant sans compteur d’essai.',features:['Lecture illimitée des contenus Gratuit et PRO','Films, Shorts et musique disponibles','Plus de limite de 5 heures pendant l’abonnement']},
-  {tier:'elite',monthly_price_xof:null,headline:'Soutenir et tout découvrir',description:'Tout PRO, avec en plus les contenus réservés à ELITE.',features:['Tous les avantages PRO','Accès aux contenus marqués ELITE','Un accès premium aux nouveautés désignées par HOLYVIEW']}
+  {tier:'pro',monthly_price_xof:1000,headline:'Profiter sans limite',description:'La formule pour regarder et écouter le catalogue courant sans compteur d’essai.',features:['Lecture illimitée des contenus Gratuit et PRO','Films, Shorts et musique disponibles','Plus de limite de 5 heures pendant l’abonnement']},
+  {tier:'elite',monthly_price_xof:2000,headline:'Soutenir et tout découvrir',description:'Tout PRO, avec en plus les contenus réservés à ELITE.',features:['Tous les avantages PRO','Accès aux contenus marqués ELITE','Un accès premium aux nouveautés désignées par HOLYVIEW']}
  ];
  const rank={free:0,pro:1,elite:2};
  subscriptionOffers=(data?.length?data:fallback).sort((a,b)=>(rank[a.tier]??9)-(rank[b.tier]??9));
@@ -112,28 +112,74 @@ function renderOffers(){
    return '<article class="plan-card plan-'+esc(tier)+(tier==='elite'?' plan-featured':'')+'"><div class="plan-tier">'+esc(tier.toUpperCase())+'</div><h3>'+esc(offer.headline||tier.toUpperCase())+'</h3><p>'+esc(offer.description||'Formule HOLYVIEW')+'</p><div class="plan-price">'+esc(price)+'</div><ul>'+features+'</ul><button type="button" class="btn '+(tier==='elite'?'btn-pink':tier==='pro'?'btn-green':'btn-glass')+'" data-plan-select="'+esc(tier)+'">'+esc(action)+'</button></article>';
  }).join('');
 }
+function shouldShowEliteUpsell(userId, active){
+ const key='holyview:eliteUpsell:last:'+userId;
+ const now=Date.now();
+ const started=Date.parse(active.starts_at||active.created_at||new Date(now).toISOString());
+ try{
+  const last=Number(localStorage.getItem(key)||0);
+  const reference=last>0?last:started;
+  if(!Number.isFinite(reference)||now-reference<14*24*60*60*1000)return false;
+  localStorage.setItem(key,String(now));
+  return true;
+ }catch{
+  return Number.isFinite(started)&&now-started>=14*24*60*60*1000;
+ }
+}
+function renderTrialMembershipStatus(remainingSeconds){
+ const panel=$('memberPlanBanner');if(!panel||!currentUser)return;
+ const rem=Math.max(0,Number(remainingSeconds)||0);
+ const hours=Math.floor(rem/3600),minutes=Math.floor((rem%3600)/60);
+ if(rem<=0){
+  panel.hidden=false;
+  panel.innerHTML='<div><strong>Tes 5 heures gratuites sont terminées</strong><span>Choisis PRO à 1 000 FCFA/mois ou ELITE à 2 000 FCFA/mois pour continuer la lecture.</span></div><a href="#plans" class="member-status-action">Choisir mon abonnement</a>';
+  return;
+ }
+ let advice='Compare PRO et ELITE pour continuer après ton essai gratuit.';
+ if(rem<=1800)advice='Il te reste moins de 30 minutes. Prépare ton abonnement pour continuer sans interruption.';
+ else if(rem<=3600)advice='Il te reste environ 1 heure. Passe à PRO ou ELITE pour poursuivre la lecture après l’essai.';
+ else if(rem<=7200)advice='Il te reste environ 2 heures. Découvre PRO et ELITE avant la fin de ton essai.';
+ else if(rem<=14400)advice='Il te reste environ 4 heures. Tu peux déjà comparer les abonnements.';
+ panel.hidden=false;
+ panel.innerHTML='<div><strong>Temps gratuit restant : '+hours+' h '+minutes+' min 🎬</strong><span>'+esc(advice)+'</span></div><a href="#plans" class="member-status-action">Voir les abonnements</a>';
+}
 async function updateMembershipStatus(user){
  const panel=$('memberPlanBanner');if(!panel)return;
  if(!user){panel.hidden=true;panel.innerHTML='';return}
  panel.hidden=false;panel.innerHTML='<strong>Ton espace HOLYVIEW</strong><span>Vérification de ta formule…</span>';
  try{
   const [subsResult,trialResult]=await Promise.all([
-   supabase.from('subscriptions').select('tier,status,starts_at,ends_at').eq('user_id',user.id).eq('status','active'),
+   supabase.from('subscriptions').select('tier,status,starts_at,ends_at,created_at').eq('user_id',user.id).eq('status','active'),
    supabase.from('trial_usage').select('used_seconds').eq('user_id',user.id).maybeSingle()
   ]);
-  const now=new Date(),active=(subsResult.data||[]).find(s=>(!s.starts_at||new Date(s.starts_at)<=now)&&(!s.ends_at||new Date(s.ends_at)>now));
+  if(subsResult.error)throw subsResult.error;
+  if(trialResult.error)throw trialResult.error;
+  const now=new Date();
+  const active=(subsResult.data||[])
+   .filter(s=>(!s.starts_at||new Date(s.starts_at)<=now)&&(!s.ends_at||new Date(s.ends_at)>now))
+   .sort((a,b)=>({free:0,pro:1,elite:2}[b.tier]||0)-({free:0,pro:1,elite:2}[a.tier]||0))[0]||null;
   const tier=active&&['pro','elite'].includes(active.tier)?active.tier:'free';
-  const rem=Math.max(0,18000-Number(trialResult.data?.used_seconds||0));
-  if(tier!=='free'){
-   const end=active.ends_at?' · valable jusqu’au '+new Date(active.ends_at).toLocaleDateString('fr-FR'):'';
-   panel.innerHTML='<div><strong>Formule '+tier.toUpperCase()+'</strong><span>Lecture illimitée selon les contenus inclus'+esc(end)+'</span></div><a href="#plans" class="member-status-action">Gérer ma formule</a>';
-  }else if(rem>0){
-   panel.innerHTML='<div><strong>Tu bénéficies de 5 heures gratuites 🎬</strong><span>Temps restant : '+Math.floor(rem/3600)+' h '+Math.floor((rem%3600)/60)+' min. Ton essai est personnel à ce compte.</span></div><a href="#plans" class="member-status-action">Comparer les formules</a>';
-  }else{
-   panel.innerHTML='<div><strong>Tes 5 heures gratuites sont utilisées</strong><span>Choisis PRO ou ELITE pour retrouver la lecture complète. Les paiements en ligne sont encore en préparation.</span></div><a href="#plans" class="member-status-action">Voir PRO et ELITE</a>';
+  const used=Number(trialResult.data?.used_seconds||0);
+  const rem=Math.max(0,18000-used);
+  if(tier==='free'){renderTrialMembershipStatus(rem);return}
+  const dateLabel=active.ends_at?new Date(active.ends_at).toLocaleDateString('fr-FR'):'';
+  const daysToEnd=active.ends_at?Math.ceil((new Date(active.ends_at).getTime()-now.getTime())/86400000):null;
+  if(daysToEnd!==null&&daysToEnd<=7&&daysToEnd>=0){
+   panel.innerHTML='<div><strong>Attention : ton abonnement '+esc(tier.toUpperCase())+' se termine dans '+daysToEnd+' jour'+(daysToEnd>1?'s':'')+' ⏳</strong><span>Fin prévue le '+esc(dateLabel)+'. Prépare le renouvellement pour conserver tes avantages.</span></div><a href="#plans" class="member-status-action">Voir les abonnements</a>';
+   return;
   }
- }catch(error){console.warn('HOLYVIEW membership status',error);panel.innerHTML='<div><strong>Ton espace HOLYVIEW</strong><span>Consulte les offres pour découvrir les formules disponibles.</span></div><a href="#plans" class="member-status-action">Voir les formules</a>'}
+  if(tier==='pro'&&shouldShowEliteUpsell(user.id,active)){
+   panel.innerHTML='<div><strong>Découvre l’expérience ELITE ✨</strong><span>HOLYVIEW te propose de passer à ELITE pour accéder aussi aux contenus réservés à cette formule. Tarif : 2 000 FCFA/mois.</span></div><a href="#plans" class="member-status-action">Comparer avec ELITE</a>';
+   return;
+  }
+  const end=active.ends_at?' · valable jusqu’au '+dateLabel:'';
+  panel.innerHTML='<div><strong>Formule '+esc(tier.toUpperCase())+'</strong><span>Lecture sans compteur d’essai pour les contenus inclus dans ton abonnement'+esc(end)+'</span></div><a href="#plans" class="member-status-action">Gérer ma formule</a>';
+ }catch(error){
+  console.warn('HOLYVIEW membership status',error);
+  panel.innerHTML='<div><strong>Ton espace HOLYVIEW</strong><span>Impossible de vérifier ta formule maintenant. Réessaie dans un instant.</span></div><a href="#plans" class="member-status-action">Voir les formules</a>';
+ }
 }
+window.addEventListener('holyview:trial-update',event=>renderTrialMembershipStatus(event.detail?.remainingSeconds));
 
 function countrySelect(){return countryOptions.map(c=>'<option value="'+c.code+'">'+esc(c.name)+' ('+c.dial+')</option>').join('')}
 async function renderApp(){

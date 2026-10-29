@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
-const URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SASPAY_API_KEY = (Deno.env.get("SASPAY_API_KEY") ?? "").trim(); // production key
@@ -18,7 +18,7 @@ const cors = {
 };
 const reply = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: cors });
-const admin = () => createClient(URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
+const admin = () => createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
 
 async function paymentsEnabled(db: ReturnType<typeof admin>): Promise<boolean> {
   const { data, error } = await db.from("settings").select("value").eq("key", "payments_enabled").maybeSingle();
@@ -376,7 +376,7 @@ async function webhook(req: Request, raw: string) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return reply(405, { ok: false, error: "Méthode non autorisée." });
-  if (!URL || !ANON || !SERVICE) return reply(500, { ok: false, error: "Configuration serveur Supabase incomplète." });
+  if (!SUPABASE_URL || !ANON || !SERVICE) return reply(500, { ok: false, error: "Configuration serveur Supabase incomplète." });
 
   let raw = "";
   try { raw = await req.text(); } catch { return reply(400, { ok: false, error: "Impossible de lire la requête." }); }
@@ -409,7 +409,7 @@ Deno.serve(async (req: Request) => {
 
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) return reply(401, { ok: false, error: "Connecte-toi pour gérer un abonnement." });
-  const authClient = createClient(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+  const authClient = createClient(SUPABASE_URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await authClient.auth.getUser(token);
   if (error || !data.user) return reply(401, { ok: false, error: "Session invalide. Reconnecte-toi." });
 

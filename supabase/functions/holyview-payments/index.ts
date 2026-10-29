@@ -185,7 +185,16 @@ async function createCheckout(db: ReturnType<typeof admin>, user: Record<string,
   const active = (activeRows ?? []).filter((x: any) => x.starts_at && x.ends_at && Date.parse(x.starts_at) <= now && Date.parse(x.ends_at) > now)
     .sort((a: any, b: any) => ({ free: 0, pro: 1, elite: 2 }[b.tier as string] ?? 0) - ({ free: 0, pro: 1, elite: 2 }[a.tier as string] ?? 0))[0];
   if (active?.tier === "elite" && tier === "pro") {
-    return reply(409, { ok: false, error: "Ton abonnement ELITE est encore actif. Tu pourras choisir PRO après son expiration." });
+    return reply(409, { ok: false, code: "ELITE_DOWNGRADE_BLOCKED", error: "Ton abonnement ELITE est encore actif. HOLYVIEW ne propose pas de rétrogradation vers PRO avant son expiration." });
+  }
+  if (active?.tier === "pro" && tier === "pro") {
+    return reply(409, { ok: false, code: "PRO_RENEWAL_TOO_EARLY", error: "Ton abonnement PRO est encore actif. Pour le moment, seule la montée vers ELITE est proposée. PRO redeviendra disponible après l’expiration." });
+  }
+  if (active?.tier === "elite" && tier === "elite") {
+    const daysToEnd = Math.ceil((Date.parse(active.ends_at) - now) / 86400000);
+    if (daysToEnd > 7) {
+      return reply(409, { ok: false, code: "ELITE_RENEWAL_TOO_EARLY", error: "Ton abonnement ELITE est encore actif. Le renouvellement sera disponible pendant les 7 derniers jours." });
+    }
   }
 
   const email = String(user.email ?? "").trim();

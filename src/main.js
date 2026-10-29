@@ -227,7 +227,11 @@ async function checkSasPayPayment(paymentId, fromReturn = false) {
   if(result.paid) {
    completedPaymentReturnId = paymentId;
    clearPaymentReturnParams(paymentId);
-   toast('Paiement confirmé ! Ta formule ' + String(result.tier || '').toUpperCase() + ' est activée.');
+   if(result.testMode || result.activated === false) {
+    toast('Test SasPay confirmé. Aucun abonnement réel n’a été activé.');
+   } else {
+    toast('Paiement confirmé ! Ta formule ' + String(result.tier || '').toUpperCase() + ' est activée.');
+   }
    await updateMembershipStatus(currentUser);
    return;
   }

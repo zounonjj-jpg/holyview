@@ -171,6 +171,9 @@ async function createCheckout(db: ReturnType<typeof admin>, user: Record<string,
   if (!testMode && (!SASPAY_API_KEY || /^sk_test_/i.test(SASPAY_API_KEY))) {
     return reply(503, { ok: false, code: "LIVE_KEY_REQUIRED", error: "La clé API de production est absente ou ressemble à une clé de test." });
   }
+  if (!testMode && !SASPAY_WEBHOOK_SECRET) {
+    return reply(503, { ok: false, code: "WEBHOOK_SECRET_REQUIRED", error: "Le secret de signature du webhook SasPay n’est pas configuré. Termine cette configuration avant de lancer un paiement réel." });
+  }
   const { data: offer, error: offerError } = await db.from("subscription_offers")
     .select("tier,monthly_price_xof,is_listed").eq("tier", tier).eq("is_listed", true).maybeSingle();
   if (offerError || !offer || !Number.isSafeInteger(Number(offer.monthly_price_xof)) || Number(offer.monthly_price_xof) <= 0) {

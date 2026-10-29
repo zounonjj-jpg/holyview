@@ -156,7 +156,7 @@ async function updateMembershipStatus(user){
   if(trialResult.error)throw trialResult.error;
   const now=new Date();
   const active=(subsResult.data||[])
-   .filter(s=>(!s.starts_at||new Date(s.starts_at)<=now)&&(!s.ends_at||new Date(s.ends_at)>now))
+   .filter(s=>!!s.starts_at&&!!s.ends_at&&new Date(s.starts_at)<=now&&new Date(s.ends_at)>now)
    .sort((a,b)=>({free:0,pro:1,elite:2}[b.tier]||0)-({free:0,pro:1,elite:2}[a.tier]||0))[0]||null;
   const tier=active&&['pro','elite'].includes(active.tier)?active.tier:'free';
   const used=Number(trialResult.data?.used_seconds||0);

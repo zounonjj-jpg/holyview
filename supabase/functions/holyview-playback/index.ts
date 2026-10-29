@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
     if (subError) return reply(500, { error: "Impossible de vérifier l’abonnement." });
     const now = new Date();
     const activeSub = (activeSubs || [])
-      .filter((s: any) => (!s.starts_at || new Date(s.starts_at) <= now) && (!s.ends_at || new Date(s.ends_at) > now))
+      .filter((s: any) => !!s.starts_at && !!s.ends_at && new Date(s.starts_at) <= now && new Date(s.ends_at) > now)
       .sort((a: any, b: any) => (TIER_RANK[b.tier] ?? -1) - (TIER_RANK[a.tier] ?? -1))[0] || null;
     const paidTier = activeSub && ["pro", "elite"].includes(activeSub.tier) ? activeSub.tier : null;
     const { data: trialSetting } = await admin.from("settings").select("value").eq("key", "trial_duration_seconds").maybeSingle();

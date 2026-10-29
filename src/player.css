@@ -3,3 +3,5 @@
 .hv-player-media video{object-fit:contain;aspect-ratio:16/9}
 .hv-player-media video.hv-short{width:auto;max-width:100%;height:min(76vh,820px);aspect-ratio:9/16;object-fit:contain}
 @media(max-width:640px){.hv-player-media video.hv-short{height:min(72vh,760px);max-width:100%}}
+
+.hv-player-plans{display:inline-flex;align-items:center;justify-content:center;margin:0 18px 18px;padding:11px 16px;border:0;border-radius:9px;background:#b8ef79;color:#17200e;font-weight:850;font-size:12px;cursor:pointer}.hv-player-plans[hidden]{display:none!important}.hv-player-plans:hover{filter:brightness(1.06)}

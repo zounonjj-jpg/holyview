@@ -261,21 +261,65 @@ async function webhook(req: Request, raw: string) {
   const d = event.data ?? {};
   if (d.currency && String(d.currency).toUpperCase() !== "XOF") return reply(200, { ok: true, ignored: true });
 
-  // A webhook only triggers activation when reference exactly matches a stored session UUID.
-  // Otherwise, the authenticated status-check flow reconciles it after return.
+  // Prefer a direct UUID reference when SasPay uses the checkout-session ID.
+  // Otherwise map the webhook transaction ID to a pending local session through SasPay's
+  // authenticated status API. Amount alone is never enough to identify a payment.
   const ref = String(d.reference ?? "");
-  if (!/^[0-9a-f-]{36}$/i.test(ref)) return reply(200, { ok: true, ignored: true });
+  const transactionId = String(d.id ?? "");
   const db = admin();
-  const { data: p, error } = await db.from("payments")
-    .select("id,user_id,provider,provider_reference,amount,currency,status,metadata,subscription_id")
-    .eq("provider", "saspay").eq("provider_reference", ref).maybeSingle();
-  if (error || !p || (d.amount !== undefined && Number(d.amount) !== Number(p.amount)) || p.currency !== "XOF") {
+  let p: Record<string, any> | null = null;
+
+  if (/^[0-9a-f-]{36}$/i.test(ref)) {
+    const direct = await db.from("payments")
+      .select("id,user_id,provider,provider_reference,amount,currency,status,metadata,subscription_id")
+      .eq("provider", "saspay").eq("provider_reference", ref).maybeSingle();
+    if (!direct.error && direct.data) p = direct.data;
+  }
+
+  if (!p && /^[0-9a-f-]{36}$/i.test(transactionId)) {
+    const pending = await db.from("payments")
+      .select("id,user_id,provider,provider_reference,amount,currency,status,metadata,subscription_id,created_at")
+      .eq("provider", "saspay").eq("status", "pending").eq("currency", "XOF")
+      .order("created_at", { ascending: false }).limit(12);
+
+    if (!pending.error && pending.data?.length) {
+      const candidates = pending.data.filter((candidate: Record<string, any>) =>
+        !!candidate.provider_reference
+        && (d.amount === undefined || Number(candidate.amount) === Number(d.amount))
+        && (!d.currency || String(d.currency).toUpperCase() === String(candidate.currency).toUpperCase())
+      );
+      const matches = await Promise.all(candidates.map(async (candidate: Record<string, any>) => {
+        try {
+          const session = await sessionStatus(String(candidate.provider_reference));
+          const txRef = String(session.transaction_reference ?? "");
+          const webhookRef = String(d.reference ?? "");
+          if (!paid(session) || String(session.transaction_id ?? "") !== transactionId) return null;
+          if (webhookRef && txRef && webhookRef !== txRef) return null;
+          return candidate;
+        } catch {
+          return null;
+        }
+      }));
+      p = matches.find((candidate: Record<string, any> | null) => candidate !== null) ?? null;
+    }
+  }
+
+  if (!p || (d.amount !== undefined && Number(d.amount) !== Number(p.amount)) || p.currency !== "XOF") {
     return reply(200, { ok: true, ignored: true });
   }
   if (p.status === "succeeded") return reply(200, { ok: true, alreadyProcessed: true });
+  if (p.status !== "pending") return reply(200, { ok: true, ignored: true });
+
   try {
     const s = await sessionStatus(String(p.provider_reference));
     if (!paid(s)) return reply(200, { ok: true, awaitingConfirmation: true });
+    if (String(s.transaction_id ?? "") !== transactionId && transactionId) {
+      return reply(200, { ok: true, ignored: true });
+    }
+    const txRef = String(s.transaction_reference ?? "");
+    if (ref && txRef && ref !== txRef && ref !== String(p.provider_reference)) {
+      return reply(200, { ok: true, ignored: true });
+    }
     await activate(db, p);
     return reply(200, { ok: true });
   } catch {

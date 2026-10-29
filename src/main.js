@@ -12,6 +12,7 @@ const regionNames = new Intl.DisplayNames(['fr'], { type: 'region' });
 const countryOptions = getCountries().map(code => ({ code, name: regionNames.of(code) || code, dial: '+' + getCountryCallingCode(code) }))
   .sort((a,b) => a.name.localeCompare(b.name, 'fr'));
 let movies=[], tracks=[], currentUser=null, authMode='login', subscriptionOffers=[];
+let membershipState={tier:'guest',active:null,daysToEnd:null,showEliteUpsell:false,expiredTier:null};
 const esc = (s='') => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('show'),3600)}
 function logo(){return '<a class="brand" href="#home" aria-label="HOLYVIEW accueil"><img src="/holyview-logo.svg" alt=""><span>HOLY<b>VIEW</b></span></a>'}
@@ -104,11 +105,37 @@ async function loadOffers(){
 }
 function renderOffers(){
  const grid=$('plansGrid');if(!grid)return;
- grid.innerHTML=subscriptionOffers.map(offer=>{
+ let visibleOffers=[...subscriptionOffers];
+ const state=membershipState||{tier:'guest',active:null,daysToEnd:null,showEliteUpsell:false,expiredTier:null};
+ if(currentUser){
+  if(state.active&&state.tier==='elite'){
+   visibleOffers=state.daysToEnd!==null&&state.daysToEnd<=7&&state.daysToEnd>=0
+    ?visibleOffers.filter(o=>o.tier==='elite'):[];
+  }else if(state.active&&state.tier==='pro'){
+   visibleOffers=(state.showEliteUpsell||(state.daysToEnd!==null&&state.daysToEnd<=7&&state.daysToEnd>=0))
+    ?visibleOffers.filter(o=>o.tier==='elite'):[];
+  }else{
+   visibleOffers=visibleOffers.filter(o=>['pro','elite'].includes(o.tier));
+  }
+ }
+ if(!visibleOffers.length){
+  if(currentUser&&state.active&&state.tier==='elite'){
+   grid.innerHTML='<div class="empty membership-offers-empty">Ton abonnement ELITE est actif jusqu’au '+esc(new Date(state.active.ends_at).toLocaleDateString('fr-FR'))+'. Les options de renouvellement apparaîtront pendant les 7 derniers jours.</div>';
+  }else if(currentUser&&state.active&&state.tier==='pro'){
+   grid.innerHTML='<div class="empty membership-offers-empty">Ton abonnement PRO est actif. HOLYVIEW te proposera ELITE périodiquement. PRO et ELITE seront de nouveau disponibles après l’échéance.</div>';
+  }else{
+   grid.innerHTML='<div class="empty membership-offers-empty">Les offres sont en cours de chargement. Réessaie dans un instant.</div>';
+  }
+  return;
+ }
+ grid.innerHTML=visibleOffers.map(offer=>{
    const tier=offer.tier||'free';
    const price=tier==='free'?'Gratuit':offer.monthly_price_xof==null?'Tarif bientôt annoncé':moneyXof(offer.monthly_price_xof)+' / mois';
    const features=(offer.features||[]).map(feature=>'<li>'+esc(feature)+'</li>').join('');
-   const action=tier==='free'?'Créer mon compte':'Choisir '+tier.toUpperCase();
+   let action=tier==='free'?'Créer mon compte':'Choisir '+tier.toUpperCase();
+   if(currentUser&&state.active&&state.tier==='pro'&&tier==='elite')action='Passer à ELITE';
+   if(currentUser&&state.active&&state.tier==='elite'&&tier==='elite')action='Renouveler ELITE';
+   if(currentUser&&!state.active&&state.expiredTier&&['pro','elite'].includes(tier))action='Renouveler '+tier.toUpperCase();
    return '<article class="plan-card plan-'+esc(tier)+(tier==='elite'?' plan-featured':'')+'"><div class="plan-tier">'+esc(tier.toUpperCase())+'</div><h3>'+esc(offer.headline||tier.toUpperCase())+'</h3><p>'+esc(offer.description||'Formule HOLYVIEW')+'</p><div class="plan-price">'+esc(price)+'</div><ul>'+features+'</ul><button type="button" class="btn '+(tier==='elite'?'btn-pink':tier==='pro'?'btn-green':'btn-glass')+'" data-plan-select="'+esc(tier)+'">'+esc(action)+'</button></article>';
  }).join('');
 }
@@ -145,41 +172,67 @@ function renderTrialMembershipStatus(remainingSeconds){
 }
 async function updateMembershipStatus(user){
  const panel=$('memberPlanBanner');if(!panel)return;
- if(!user){panel.hidden=true;panel.innerHTML='';return}
+ if(!user){
+  membershipState={tier:'guest',active:null,daysToEnd:null,showEliteUpsell:false,expiredTier:null};
+  panel.hidden=true;panel.innerHTML='';renderOffers();return;
+ }
  panel.hidden=false;panel.innerHTML='<strong>Ton espace HOLYVIEW</strong><span>Vérification de ta formule…</span>';
  try{
   const [subsResult,trialResult]=await Promise.all([
-   supabase.from('subscriptions').select('tier,status,starts_at,ends_at,created_at').eq('user_id',user.id).eq('status','active'),
+   supabase.from('subscriptions').select('tier,status,starts_at,ends_at,created_at').eq('user_id',user.id).in('status',['active','expired']),
    supabase.from('trial_usage').select('used_seconds').eq('user_id',user.id).maybeSingle()
   ]);
   if(subsResult.error)throw subsResult.error;
   if(trialResult.error)throw trialResult.error;
   const now=new Date();
-  const active=(subsResult.data||[])
-   .filter(s=>!!s.starts_at&&!!s.ends_at&&new Date(s.starts_at)<=now&&new Date(s.ends_at)>now)
+  const allSubs=subsResult.data||[];
+  const active=allSubs
+   .filter(s=>!!s.starts_at&&!!s.ends_at&&new Date(s.starts_at)<=now&&new Date(s.ends_at)>now&&['pro','elite'].includes(s.tier))
    .sort((a,b)=>({free:0,pro:1,elite:2}[b.tier]||0)-({free:0,pro:1,elite:2}[a.tier]||0))[0]||null;
-  const tier=active&&['pro','elite'].includes(active.tier)?active.tier:'free';
+  const expired=allSubs
+   .filter(s=>['pro','elite'].includes(s.tier)&&!!s.ends_at&&new Date(s.ends_at)<=now)
+   .sort((a,b)=>new Date(b.ends_at).getTime()-new Date(a.ends_at).getTime())[0]||null;
   const used=Number(trialResult.data?.used_seconds||0);
   const rem=Math.max(0,18000-used);
-  if(tier==='free'){renderTrialMembershipStatus(rem);return}
-  const dateLabel=active.ends_at?new Date(active.ends_at).toLocaleDateString('fr-FR'):'';
-  const daysToEnd=active.ends_at?Math.ceil((new Date(active.ends_at).getTime()-now.getTime())/86400000):null;
-  if(daysToEnd!==null&&daysToEnd<=7&&daysToEnd>=0){
-   panel.innerHTML='<div><strong>Attention : ton abonnement '+esc(tier.toUpperCase())+' se termine dans '+daysToEnd+' jour'+(daysToEnd>1?'s':'')+' ⏳</strong><span>Fin prévue le '+esc(dateLabel)+'. Prépare le renouvellement pour conserver tes avantages.</span></div><a href="#plans" class="member-status-action">Voir les abonnements</a>';
+  if(!active){
+   membershipState={tier:'free',active:null,daysToEnd:null,showEliteUpsell:false,expiredTier:expired?.tier||null};
+   renderOffers();
+   if(expired){
+    const expiredTier=String(expired.tier).toUpperCase();
+    const dateLabel=new Date(expired.ends_at).toLocaleDateString('fr-FR');
+    panel.hidden=false;
+    panel.innerHTML='<div><strong>Ton abonnement '+esc(expiredTier)+' est terminé</strong><span>Il est arrivé à échéance le '+esc(dateLabel)+'. Choisis PRO à 1 000 FCFA/mois ou ELITE à 2 000 FCFA/mois pour reprendre la lecture complète.</span></div>';
+    return;
+   }
+   renderTrialMembershipStatus(rem);
    return;
   }
-  if(tier==='pro'&&shouldShowEliteUpsell(user.id,active)){
-   panel.innerHTML='<div><strong>Découvre l’expérience ELITE ✨</strong><span>HOLYVIEW te propose de passer à ELITE pour accéder aussi aux contenus réservés à cette formule. Tarif : 2 000 FCFA/mois.</span></div><a href="#plans" class="member-status-action">Comparer avec ELITE</a>';
+  const tier=active.tier;
+  const daysToEnd=Math.ceil((new Date(active.ends_at).getTime()-now.getTime())/86400000);
+  const showEliteUpsell=tier==='pro'&&daysToEnd>7&&shouldShowEliteUpsell(user.id,active);
+  membershipState={tier,active,daysToEnd,showEliteUpsell,expiredTier:null};
+  renderOffers();
+  const dateLabel=new Date(active.ends_at).toLocaleDateString('fr-FR');
+  if(daysToEnd<=7&&daysToEnd>=0){
+   panel.hidden=false;
+   panel.innerHTML='<div><strong>Attention : ton abonnement '+esc(tier.toUpperCase())+' se termine dans '+daysToEnd+' jour'+(daysToEnd>1?'s':'')+' ⏳</strong><span>Fin prévue le '+esc(dateLabel)+'. Tu peux passer à ELITE si tu es en PRO. Après expiration, PRO et ELITE seront de nouveau proposés.</span></div>';
    return;
   }
-  const end=active.ends_at?' · valable jusqu’au '+dateLabel:'';
-  panel.innerHTML='<div><strong>Formule '+esc(tier.toUpperCase())+'</strong><span>Lecture sans compteur d’essai pour les contenus inclus dans ton abonnement'+esc(end)+'</span></div><a href="#plans" class="member-status-action">Gérer ma formule</a>';
+  if(showEliteUpsell){
+   panel.hidden=false;
+   panel.innerHTML='<div><strong>Découvre l’expérience ELITE ✨</strong><span>Ton abonnement PRO est actif. Tu peux passer à ELITE à 2 000 FCFA/mois pour accéder aussi aux contenus réservés à cette formule.</span></div>';
+   return;
+  }
+  const end=' · valable jusqu’au '+dateLabel;
+  panel.hidden=false;
+  panel.innerHTML='<div><strong>Formule '+esc(tier.toUpperCase())+'</strong><span>Lecture sans compteur d’essai pour les contenus inclus dans ton abonnement'+esc(end)+'</span></div>';
  }catch(error){
   console.warn('HOLYVIEW membership status',error);
+  membershipState={tier:'unknown',active:null,daysToEnd:null,showEliteUpsell:false,expiredTier:null};
+  renderOffers();
   panel.innerHTML='<div><strong>Ton espace HOLYVIEW</strong><span>Impossible de vérifier ta formule maintenant. Réessaie dans un instant.</span></div><a href="#plans" class="member-status-action">Voir les formules</a>';
  }
 }
-
 let paymentReturnInFlight = false;
 let completedPaymentReturnId = null;
 

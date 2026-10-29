@@ -87,7 +87,7 @@ begin
 
     update public.subscriptions
     set tier = p_tier::public.membership_tier,
-        ends_at = pg_catalog.greatest(v_active.ends_at, v_now) + interval '1 month',
+        ends_at = (case when v_active.ends_at > v_now then v_active.ends_at else v_now end) + interval '1 month',
         updated_at = v_now
     where id = v_active.id
     returning id into v_subscription_id;
